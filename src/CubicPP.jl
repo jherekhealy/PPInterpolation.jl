@@ -52,7 +52,7 @@ function makeC2CubicPP(
   return pp
 end
 
-function computeC2CubicPP(pp:CubicPP{T},
+function computeC2CubicPP(pp::CubicPP{T},
     x::Vector{T},
     y::Vector{T},
     leftBoundary::PPBoundary,
