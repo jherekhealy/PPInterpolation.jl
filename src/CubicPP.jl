@@ -110,11 +110,11 @@ function computeC2CubicPP(pp:CubicPP{T},
     c = (3 * S - fPrime[2:end] - 2 * fPrime[1:end-1]) ./ dx
     d = (fPrime[2:end] + fPrime[1:end-1] - 2 * S) ./ (dx.^2)
 
-    pp.a = copy(y)
-	pp.b = fPrime
-	pp.c  = c
-	pp.d = d
-	pp.x = copy(x)
+    pp.a[1:end] = y
+	pp.b[1:end] = fPrime
+	pp.c[1:end] = c
+	pp.d[1:end] = d
+	pp.x[1:end] = x
 end
 
 function makeHermiteCubicPP(
