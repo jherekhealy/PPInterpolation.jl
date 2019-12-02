@@ -1,5 +1,7 @@
 using LinearAlgebra
 
+export CubicPP, makeLinearCubicPP, makeC2CubicPP, makeHermiteCubicPP
+
 struct CubicPP{T<:Real}
     a::Vector{T}
     b::Vector{T}
@@ -12,6 +14,8 @@ end
 # struct FirstDerivativeBoundary <: PPBoundary end
 # struct SecondDerivativeBoundary <: PPBoundary end
 @enum PPBoundary not_a_knot = 0 first_derivative = 1 second_derivative = 2
+
+(spl::CubicPP)(x::Int) = CubicPP(zeros(x), zeros(x),zeros(x),zeros(x),zeros(x))
 
 function makeLinearCubicPP(x::Vector{T}, y::Vector{T}) where {T}
     n = length(x)
@@ -36,6 +40,19 @@ function makeLinearCubicPP(x::Vector{T}, y::Vector{T}) where {T}
 end
 
 function makeC2CubicPP(
+    x::Vector{T},
+    y::Vector{T},
+    leftBoundary::PPBoundary,
+    leftValue::T,
+    rightBoundary::PPBoundary,
+    rightValue::T
+) where {T}
+  pp = CubicPP(length(y))
+  computeC2CubicPP(pp, x, y, leftBoundary, leftValue, rightBoundary, rightValue)
+  return pp
+end
+
+function computeC2CubicPP(pp:CubicPP{T},
     x::Vector{T},
     y::Vector{T},
     leftBoundary::PPBoundary,
@@ -93,7 +110,11 @@ function makeC2CubicPP(
     c = (3 * S - fPrime[2:end] - 2 * fPrime[1:end-1]) ./ dx
     d = (fPrime[2:end] + fPrime[1:end-1] - 2 * S) ./ (dx.^2)
 
-    return CubicPP(copy(y), fPrime, c, d, copy(x))
+    pp.a = copy(y)
+	pp.b = fPrime
+	pp.c  = c
+	pp.d = d
+	pp.x = copy(x)
 end
 
 function makeHermiteCubicPP(
