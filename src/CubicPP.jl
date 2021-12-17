@@ -137,7 +137,7 @@ function computeCubicPP(
         middle[n] = 1.0
         lower[n-1] = 0.0
         alpha[n] = rightValue
-    else if rightBoundary == FIRST_DIFFERENCE
+    elseif rightBoundary == FIRST_DIFFERENCE
         middle[n] = 1.0
         lower[n-1] = 0.0
         alpha[n] = S[n-1]
@@ -385,7 +385,7 @@ function computeCubicPP(
             S[n-1] * ((dx[n-2] / dx[n-1] + 2) / (dx[n-2] + dx[n-1]))
     elseif rightBoundary == FIRST_DERIVATIVE
         b[n] = rightValue
-    else if rightBoundary == FIRST_DIFFERENCE
+    elseif rightBoundary == FIRST_DIFFERENCE
         b[n] = S[n-1]
     elseif rightBoundary == SECOND_DERIVATIVE
         b[n] = (rightValue * dx[n-1] + 6 * S[n-1] - 2 * b[n-1]) / 4
