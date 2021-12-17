@@ -3,13 +3,6 @@ using Cbc
 #using GLPK
 export LaverySpline, QuinticLaverySpline, newQuinticLaverySpline, evaluate, evaluateDerivative
 
-mutable struct LaverySpline{T <: Real}
-    a::Vector{T}
-    b::Vector{T}
-    c::Vector{T}
-    d::Vector{T}
-    x::Vector{T}
-end
 
 mutable struct QuinticLaverySpline{T <: Real}
     a::Vector{T}
@@ -37,6 +30,8 @@ function evaluate(self::QuinticLaverySpline, z::T) where {T}
     return self.a[i] + h * (self.b[i] + h * (self.c[i] + h*(self.d[i]+h*(self.e[i]+h*self.f[i]))))
 end
 
+(spl::QuinticLaverySpline)(x::Real) = evaluate(spl, x)
+
 function evaluateDerivative(self::QuinticLaverySpline, z::T) where {T}
     if z <= self.x[1]
         return self.b[1]
@@ -52,37 +47,13 @@ function evaluateDerivative(self::QuinticLaverySpline, z::T) where {T}
     return self.b[i] + h * (2*self.c[i] + h*(3*self.d[i]+h*(4*self.e[i]+h*5*self.f[i])))
 end
 
-function evaluate(self::LaverySpline, z::T) where {T}
-    if z <= self.x[1]
-        return self.b[1] * (z - self.x[1]) + self.a[1]
-    elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope * (z - self.x[end]) + self.a[end]
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return self.a[i] + h * (self.b[i] + h * (self.c[i] + h*self.d[i]))
+function newLaverySpline(x::Vector{T}, y::Vector{T}) where {T}
+    pp = CubicPP(T, length(y))
+    computeLaverySpline(pp, x, y)
+    return pp
 end
 
-function evaluateDerivative(self::LaverySpline, z::T) where {T}
-    if z <= self.x[1]
-        return self.b[1]
-    elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return (self.b[i] + h * (2*self.c[i] + 3*h*self.d[i]))
-end
-
-function newLaverySpline(x::Vector{T}, z::Vector{T}) where {T}
+function computeLaverySpline(pp::CubicPP{T}, x::Vector{T}, z::Vector{T}) where {T}
     h = x[2:end]-x[1:end-1] #h1 = x2-x1
     dz = (z[2:end]-z[1:end-1]) ./ h
     size = length(z)
@@ -127,7 +98,11 @@ deltatk = 1.0/(nIntervals)
 
     c = (-(2*b[1:end-1]+b[2:end])+3*dz) ./ h
     d = (b[1:end-1]+b[2:end]-2*dz) ./ (h.^2)
-    return LaverySpline(copy(z), b, c, d, copy(x))
+    pp.a[1:end] = z
+    pp.b[1:end] = b
+    pp.c[1:end] = c
+    pp.d[1:end] = d
+    pp.x[1:end]  = x
 end
 
 
