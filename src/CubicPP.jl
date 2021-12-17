@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export CubicPP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritchButland
+export CubicPP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
 export evaluateDerivative, evaluateSecondDerivative
 
 abstract type DerivativeKind end
@@ -303,7 +303,11 @@ function limit(::HuynRational, s::T, t::T) where {T}
 end
 
 function limit(::VanAlbada, s::T, t::T) where {T}
-    return s * t * (s + t) / (s^2 + t^2)
+    st = s * t
+    if st == 0
+        return s
+    end
+    return st * (s + t) / (s^2 + t^2)
 end
 
 function limit(::VanLeer, s::T, t::T) where {T}
@@ -345,8 +349,13 @@ function fillDerivativeEstimate(limiter::Brodlie, dx::AbstractArray{TX}, S::Abst
     n = length(S)
     for i = 2:n
         s, t = S[i-1], S[i]
-        α = (dx[i-1] + 2 * dx[i]/(3*(dx[i-1]+dx[i])))
-        b[i] = (s*t) / (α * t + (1-α)*s)
+        st = s*t
+        if st == 0
+            b[i] = s
+        else
+        α = (dx[i-1] + 2 * dx[i])/(3*(dx[i-1]+dx[i]))
+        b[i] = (st) / (α * t + (1-α)*s)
+        end
     end
 end
 
