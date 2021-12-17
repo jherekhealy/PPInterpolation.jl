@@ -19,7 +19,7 @@ using ForwardDiff
     # println(y)
     yt = zeros(length(t))
     yt[1:end] = y[1:end] .* t[1:end]
-    spline = makeCubicPP(t,yt,PPInterpolation.second_derivative,0.0,PPInterpolation.second_derivative,0.0,C2())
+    spline = makeCubicPP(t,yt,PPInterpolation.SECOND_DERIVATIVE,0.0,PPInterpolation.SECOND_DERIVATIVE,0.0,C2())
     nSample = 1000
     for i=1:nSample
         ti = (t[end]) * (i) / (nSample)
