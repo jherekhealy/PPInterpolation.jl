@@ -1,43 +1,34 @@
 using LinearAlgebra
 #C^3 quintic spline with given first derivatives at all knots, plus second derivatives at end-points.
+export makeHermiteQuinticPP
 
-struct QuinticPP{T<:Real}
-    a::Vector{T}
-    b::Vector{T}
-    c::Vector{T}
-    d::Vector{T}
-    e::Vector{T}
-    f::Vector{T}
-    x::Vector{T}
-end
 function computeDEF(
-    d::Vector{T},
-    e::Vector{T},
-    f::Vector{T},
+    c::AbstractMatrix{T},
     f1::Vector{T},
     f2::Vector{T},
     S::Vector{T},
     dx::Vector{T}
 ) where {T}
     for i = 1:length(f1)-1
-        d[i] = (f2[i+1] - 3 * f2[i]) / (2 * dx[i]) + 2 * (5 * S[i] - 3 * f1[i] - 2 * f1[i+1]) / dx[i]^2
-        e[i] = (3 * f2[i] - 2 * f2[i+1]) / (2 * dx[i]^2) + (8 * f1[i] + 7 * f1[i+1] - 15 * S[i]) / dx[i]^3
-        f[i] = (f2[i+1] - f2[i]) / (2 * dx[i]^3) + 3 * (2 * S[i] - f1[i+1] - f1[i]) / dx[i]^4
+        c[1, i] = f2[i] / 2
+        c[2, i] = (f2[i+1] - 3 * f2[i]) / (2 * dx[i]) + 2 * (5 * S[i] - 3 * f1[i] - 2 * f1[i+1]) / dx[i]^2
+        c[3, i] = (3 * f2[i] - 2 * f2[i+1]) / (2 * dx[i]^2) + (8 * f1[i] + 7 * f1[i+1] - 15 * S[i]) / dx[i]^3
+        c[4, i] = (f2[i+1] - f2[i]) / (2 * dx[i]^3) + 3 * (2 * S[i] - f1[i+1] - f1[i]) / dx[i]^4
     end
 end
 
 
-function makeHermiteQuinticPP(x::Vector{T}, y::Vector{T}, y1::Vector{T}, y2left::T, y2right::T) where {T}
+function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}, y2left::T, y2right::T) where {T,TX}
     dx = @. x[2:end] - x[1:end-1]
     s = @. (y[2:end] - y[1:end-1]) / dx
     n = length(y)
-    rhs = zeros(n)
-    dd = zeros(n)
-    dl = zeros(n - 1)
-    du = zeros(n - 1)
+    rhs = zeros(T, n)
+    dd = zeros(TX, n)
+    dl = zeros(TX, n - 1)
+    du = zeros(TX, n - 1)
     rhs[1] = y2left
-    dd[1] = 1
-    dd[n] = 1
+    dd[1] = one(TX)
+    dd[n] = one(TX)
     rhs[n] = y2right
     for i = 2:n-1
         rhs[i] = 2 * (5 * s[i] - 3 * y1[i] - 2 * y1[i+1]) / dx[i]^2 -
@@ -50,31 +41,25 @@ function makeHermiteQuinticPP(x::Vector{T}, y::Vector{T}, y1::Vector{T}, y2left:
     end
     tri = Tridiagonal(dl, dd, du)
     y2 = tri \ rhs
-    d = zeros(n)
-    e = zeros(n)
-    f = zeros(n)
+    c = zeros(T, (4, n))
     #q''(xi+1)=f''i+1
-    for i = 1:n-1
-        d[i] = (y2[i+1] - 3 * y2[i]) / (2 * dx[i]) + 2 * (5 * s[i] - 3 * y1[i] - 2 * y1[i+1]) / dx[i]^2
-        e[i] = (3 * y2[i] - 2 * y2[i+1]) / (2 * dx[i]^2) + (8 * y1[i] + 7 * y1[i+1] - 15 * s[i]) / dx[i]^3
-        f[i] = (y2[i+1] - y2[i]) / (2 * dx[i]^3) + 3 * (2 * s[i] - y1[i+1] - y1[i]) / dx[i]^4
-    end
-    return QuinticPP(copy(y), copy(y1), y2 / 2, d, e, f, copy(x))
+    computeDEF(c, y1, y2, s, dx)
+    return PP(5, copy(y), copy(y1), c, copy(x))
 end
 
-function makeHermiteQuinticPP(x::Vector{T}, y::Vector{T}, y1::Vector{T}) where {T}
+function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}) where {T,TX}
     dx = @. x[2:end] - x[1:end-1]
     s = @. (y[2:end] - y[1:end-1]) / dx
     n = length(y)
-    rhs = zeros(n)
-    d = zeros(n)
-    dl = zeros(n - 1)
-    du = zeros(n - 1)
-    rhs[1] = 0
-    d[1] = 1
-    du[1] = -1 #y''(x0)= y''(x1)
-    d[n] = 1
-    dl[n-1] = -1
+    rhs = zeros(T, n)
+    d = zeros(TX.n)
+    dl = zeros(TX, n - 1)
+    du = zeros(TX, n - 1)
+    rhs[1] = zero(T)
+    d[1] = one(TX)
+    du[1] = -one(TX) #y''(x0)= y''(x1)
+    d[n] = one(TX)
+    dl[n-1] = -one(TX)
     rhs[n] = 0
     for i = 2:n-1
         rhs[i] = 2 * (5 * s[i] - 3 * y1[i] - 2 * y1[i+1]) / dx[i]^2 -
@@ -87,14 +72,13 @@ function makeHermiteQuinticPP(x::Vector{T}, y::Vector{T}, y1::Vector{T}) where {
     end
     tri = Tridiagonal(dl, d, du)
     y2 = tri \ rhs
-    a = copy(y)
-    d = zeros(length(a))
-    e = zeros(length(a))
-    f = zeros(length(a))
-    computeDEF(d, e, f, y1, y2, s, dx)
-    return QuinticPP(a, copy(y1), y2 / 2, d, e, f, copy(x))
+    c = zeros(T, (4, n))
+    #q''(xi+1)=f''i+1
+    computeDEF(c, y1, y2, s, dx)
+    return PP(5, copy(y), copy(y1), c, copy(x))
 end
-function evaluate(self::QuinticPP, z::T) where {T}
+
+function evaluate(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
         return self.b[1] * (z - self.x[1]) + self.a[1]
     elseif z >= self.x[end]
@@ -102,17 +86,14 @@ function evaluate(self::QuinticPP, z::T) where {T}
         return rightSlope * (z - self.x[end]) + self.a[end]
     end
     i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z==self.x[i]
-        return self.a[i]
-    end
-    if i > 1
+    if z != self.x[i] && i > 1
         i -= 1
     end
     h = z - self.x[i]
-    return self.a[i] + h * (self.b[i] + h * (self.c[i] + h * (self.d[i] + h * (self.e[i] + h * self.f[i]))))
+    return self.a[i] + h * (self.b[i] + h * (self.c[1, i] + h * (self.c[2, i] + h * (self.c[3, i] + h * self.c[4, i]))))
 end
 
-function evaluateDerivative(self::QuinticPP, z::T) where {T}
+function evaluateDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
         return self.b[1]
     elseif z >= self.x[end]
@@ -120,37 +101,33 @@ function evaluateDerivative(self::QuinticPP, z::T) where {T}
         return rightSlope
     end
     i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if i > 1
+    if z != self.x[i] && i > 1
         i -= 1
     end
     h = z - self.x[i]
-    return self.b[i] + h * (2 * self.c[i] + h * (3 * self.d[i] + h * (4 * self.e[i] + h * 5 * self.f[i])))
+    return self.b[i] + h * (2 * self.c[1, i] + h * (3 * self.c[2, i] + h * (4 * self.c[3, i] + h * 5 * self.c[4, i])))
 end
-function evaluateSecondDerivative(self::QuinticPP, z::T) where {T}
+function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
-        return self.b[1]
+        return zero(TZ)
     elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope
+        return zero(TZ)
     end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if i > 1
+    if z != self.x[i] && i > 1
         i -= 1
     end
     h = z - self.x[i]
-    return 2 * self.c[i] + h * (3 * 2 * self.d[i] + h * (4 * 3 * self.e[i] + h * 5 * 4 * self.f[i]))
+    return 2 * self.c[1, i] + h * (3 * 2 * self.c[2, i] + h * (4 * 3 * self.c[3, i] + h * 5 * 4 * self.c[4, i]))
 end
-function evaluateThirdDerivative(self::QuinticPP, z::T) where {T}
+function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
-        return self.b[1]
+        return zero(TZ)
     elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope
+        return zero(TZ)
     end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if i > 1
+    if z != self.x[i] && i > 1
         i -= 1
     end
     h = z - self.x[i]
-    return ( (3 * 2 * self.d[i] + h * (4 * 3 * 2*self.e[i] + h * 5 * 4 *3* self.f[i])))
+    return ((3 * 2 * self.c[2, i] + h * (4 * 3 * 2 * self.c[3, i] + h * 5 * 4 * 3 * self.c[4, i])))
 end

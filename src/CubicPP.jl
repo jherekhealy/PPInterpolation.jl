@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export CubicPP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
+export makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
 export evaluateDerivative, evaluateSecondDerivative
 
 abstract type DerivativeKind end
@@ -9,39 +9,47 @@ struct C2Hyman89 <: DerivativeKind end
 struct C2HymanNonNegative <: DerivativeKind end
 struct C2MP <: DerivativeKind end
 struct C2MP2 <: DerivativeKind end
-
-struct CubicPP{T<:Real,TX}
-    a::AbstractArray{T}
-    b::AbstractArray{T}
-    c::AbstractArray{T}
-    d::AbstractArray{T}
-    x::AbstractArray{TX}
-    CubicPP(T, TX, n::Int) = new{T,TX}(zeros(T, n), zeros(T, n), zeros(T, n - 1), zeros(T, n - 1), zeros(TX, n))
-    CubicPP(a::AbstractArray{T}, b::AbstractArray{T}, c::AbstractArray{T}, d::AbstractArray{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
-        new{T,TX}(a, b, c, d, x)
-end
-# abstract type PPBoundary <: Real end
-# struct FirstDerivativeBoundary <: PPBoundary end
-# struct SecondDerivativeBoundary <: PPBoundary end
 @enum PPBoundary NOT_A_KNOT = 0 FIRST_DERIVATIVE = 1 SECOND_DERIVATIVE = 2 FIRST_DIFFERENCE = 3
 
-Base.length(p::CubicPP) = Base.length(p.x)
-Base.broadcastable(p::CubicPP) = Ref(p)
+
+abstract type LimiterDerivative <: DerivativeKind end
+struct Hermite <: DerivativeKind end
+struct Bessel <: LimiterDerivative end
+struct HuynRational <: LimiterDerivative end
+struct VanLeer <: LimiterDerivative end
+struct VanAlbada <: LimiterDerivative end
+struct FritschButland <: LimiterDerivative end #Fritsch Butland 1980
+struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
+
+struct PP{N,T<:Real,TX}
+    a::AbstractArray{T}
+    b::AbstractArray{T}
+    c::AbstractMatrix{T} #c[i,:] = coeff of x^{i+1}
+    x::AbstractArray{TX}
+    PP(N::Int, T, TX, n::Int) = new{N,T,TX}(zeros(T, n), zeros(T, n), zeros(T, (N - 1, n - 1)), zeros(TX, n))
+    PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::AbstractMatrix{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
+        new{N,T,TX}(a, b, c, x)
+end
 
 
-function makeLinearCubicPP(x::AbstractArray{TX}, y::AbstractArray{T}) where {T,TX}
-    pp = CubicPP(T, TX, length(y))
-    computeLinearCubicPP(pp, x, y)
+Base.length(p::PP) = Base.length(p.x)
+Base.size(p::PP) = Base.size(p.x)
+Base.broadcastable(p::PP) = Ref(p)
+
+
+
+function makeLinearPP(x::AbstractArray{TX}, y::AbstractArray{T}) where {T,TX}
+    pp = PP(2, T, TX, length(y))
+    computeLinearPP(pp, x, y)
     return pp
 end
 
-function computeLinearCubicPP(pp::CubicPP{T,TX}, x::AbstractArray{TX}, y::AbstractArray{T}) where {T,TX}
+function computeLinearPP(pp::PP{N,T,TX}, x::AbstractArray{TX}, y::AbstractArray{T}) where {N,T,TX}
     n = length(x)
     if n <= 1
         pp.a[1:end] = y
         pp.b[1:end] = zeros(n)
-        pp.c[1:end] = zeros(n - 1)
-        pp.d[1:end] = zeros(n - 1)
+        pp.c[1:end, 1:end] = zeros((N - 1), n - 1)
         pp.x[1:end] = x
     elseif n == 2
         t = y[2] - y[1]
@@ -52,8 +60,7 @@ function computeLinearCubicPP(pp::CubicPP{T,TX}, x::AbstractArray{TX}, y::Abstra
         b[2] = b[1]
         pp.a[1:end] = y
         pp.b[1:end] = b
-        pp.c[1:end] = zeros(n - 1)
-        pp.d[1:end] = zeros(n - 1)
+        pp.c[1:end, 1:end] = zeros((N - 1), n - 1)
         pp.x[1:end] = x
     else
         # on xi, xi+1, f(x)= yi (xi+1-x) + yi (x-xi) = A + B (x-xi) => B = (yi-yi+1)/(xi-xi+1)
@@ -63,8 +70,7 @@ function computeLinearCubicPP(pp::CubicPP{T,TX}, x::AbstractArray{TX}, y::Abstra
         end
         pp.a[1:end] = y
         pp.b[1:end] = b
-        pp.c[1:end] = zeros(n - 1)
-        pp.d[1:end] = zeros(n - 1)
+        pp.c[1:end, 1:end] = zeros((N - 1), n - 1)
         pp.x[1:end] = x
     end
 end
@@ -78,85 +84,188 @@ function makeCubicPP(
     rightValue::T,
     kind::DerivativeKind,
 ) where {T,TX}
-    pp = CubicPP(T, TX, length(y))
-    computeCubicPP(pp, x, y, leftBoundary, leftValue, rightBoundary, rightValue, kind)
+    pp = PP(3, T, TX, length(y))
+    computePP(pp, x, y, leftBoundary, leftValue, rightBoundary, rightValue, kind)
     return pp
 end
 
-function computeCubicPP(
-    pp::CubicPP{T,TX},
+function computePP(
+    pp::PP{3,T,TX},
     x::AbstractArray{TX},
     y::AbstractArray{T},
     leftBoundary::PPBoundary,
     leftValue::T,
     rightBoundary::PPBoundary,
     rightValue::T,
-    kind::Union{C2,C2Hyman89,C2HymanNonNegative,C2MP, C2MP2},
+    kind::Union{C2,C2Hyman89,C2HymanNonNegative,C2MP,C2MP2},
 ) where {T,TX}
     n = length(y)
     if n <= 2
-        return makeLinearCubicPP(x, y)
+        computeLinearPP(pp, x, y)
+        return
     end
 
     dx = x[2:end] - x[1:end-1]
     S = (y[2:end] - y[1:end-1]) ./ dx
-    middle = zeros(n)
-    alpha = zeros(n)
-    lower = zeros(n - 1)
-    upper = zeros(n - 1)
+    middle = zeros(TX, n)
+    alpha = zeros(T, n)
+    lower = zeros(TX, n - 1)
+    upper = zeros(TX, n - 1)
     for i = 2:n-1
         lower[i-1] = dx[i]
         upper[i] = dx[i-1]
         middle[i] = 2 * (dx[i] + dx[i-1])
-        alpha[i] = 3.0 * (dx[i] * S[i-1] + dx[i-1] * S[i])
+        alpha[i] = 3 * (dx[i] * S[i-1] + dx[i-1] * S[i])
     end
     #middle[2:n-1] = 3 * (dx[2:n-1] + dx[1:n-2])
     #alpha[2:n-1] = 3 * (dx[2:n-1] .* S[1:n-2] + dx[1:n-2] .* S[2:n-1])
     if leftBoundary == NOT_A_KNOT
         middle[1] = dx[2] * (dx[2] + dx[1])
         upper[1] = (dx[2] + dx[1]) * (dx[2] + dx[1])
-        alpha[1] = S[1] * dx[2] * (2.0 * dx[2] + 3.0 * dx[1]) + S[2] * dx[1]^2
+        alpha[1] = S[1] * dx[2] * (2 * dx[2] + 3 * dx[1]) + S[2] * dx[1]^2
     elseif leftBoundary == FIRST_DERIVATIVE
-        middle[1] = 1.0
-        upper[1] = 0.0
+        middle[1] = one(TX)
+        upper[1] = zero(TX)
         alpha[1] = leftValue
     elseif leftBoundary == FIRST_DIFFERENCE
-        middle[1] = 1.0
-        upper[1] = 0.0
+        middle[1] = one(TX)
+        upper[1] = zero(TX)
         alpha[1] = S[1]
     elseif leftBoundary == SECOND_DERIVATIVE
-        middle[1] = 2.0
-        upper[1] = 1.0
+        middle[1] = 2 * one(TX)
+        upper[1] = one(TX)
         alpha[1] = 3 * S[1] - leftValue * dx[1] / 2
     end
     if rightBoundary == NOT_A_KNOT
         lower[n-1] = -(dx[n-1] + dx[n-2]) * (dx[n-1] + dx[n-2])
         middle[n] = -dx[n-2] * (dx[n-2] + dx[n-1])
-        alpha[n] = -S[n-2] * dx[n-1]^2 - S[n-1] * dx[n-2] * (3.0 * dx[n-1] + 2.0 * dx[n-2])
+        alpha[n] = -S[n-2] * dx[n-1]^2 - S[n-1] * dx[n-2] * (3 * dx[n-1] + 2 * dx[n-2])
     elseif rightBoundary == FIRST_DERIVATIVE
-        middle[n] = 1.0
-        lower[n-1] = 0.0
+        middle[n] = one(TX)
+        lower[n-1] = zero(TX)
         alpha[n] = rightValue
     elseif rightBoundary == FIRST_DIFFERENCE
-        middle[n] = 1.0
-        lower[n-1] = 0.0
+        middle[n] = one(TX)
+        lower[n-1] = zero(TX)
         alpha[n] = S[n-1]
     elseif rightBoundary == SECOND_DERIVATIVE
-        middle[n] = 2.0
-        lower[n-1] = 1.0
+        middle[n] = 2 * one(TX)
+        lower[n-1] = zero(TX)
         alpha[n] = 3 * S[n-1] - rightValue * dx[n-1] / 2
     end
     tri = LinearAlgebra.Tridiagonal(lower, middle, upper)
     fPrime = tri \ alpha
     filterSlope(kind, y, fPrime, dx, S)
-    c = (3 * S - fPrime[2:end] - 2 * fPrime[1:end-1]) ./ dx
-    d = (fPrime[2:end] + fPrime[1:end-1] - 2 * S) ./ (dx .^ 2)
+    c = pp.c
+    for i = 1:n-1
+        c[1, i] = (3 * S[i] - fPrime[i+1] - 2 * fPrime[i]) / dx[i]
+        c[2, i] = (fPrime[i+1] + fPrime[i] - 2 * S[i]) / (dx[i]^2)
+    end
     pp.a[1:end] = y
     pp.b[1:end] = fPrime
-    pp.c[1:end] = c
-    pp.d[1:end] = d
     pp.x[1:end] = x
 end
+
+
+function computePP(
+    pp::PP{3,T,TX},
+    x::AbstractArray{TX},
+    y::AbstractArray{T},
+    leftBoundary::PPBoundary,
+    leftValue::T,
+    rightBoundary::PPBoundary,
+    rightValue::T,
+    limiter::LimiterDerivative,
+) where {T,TX}
+    n = length(y)
+    if n <= 2
+        computeLinearPP(pp, x, y)
+        return
+    end
+
+    dx = x[2:end] - x[1:end-1]
+    S = (y[2:end] - y[1:end-1]) ./ dx
+    b = pp.b
+    fillDerivativeEstimate(limiter, dx, S, b)
+    if leftBoundary == NOT_A_KNOT
+        b[1] = S[2] * dx[1] / (dx[2] * (dx[2] + dx[1])) - S[1] * ((dx[2] / dx[1] + 2) / (dx[2] + dx[1]))
+    elseif leftBoundary == FIRST_DIFFERENCE
+        b[1] = S[1]
+    elseif leftBoundary == FIRST_DERIVATIVE
+        b[1] = leftValue
+    elseif leftBoundary == SECOND_DERIVATIVE
+        #c[1] = leftValue * 0.5
+        b[1] = (-leftValue / 2 * dx[1] - b[2] + 3 * S[1]) / 2
+    end
+    if rightBoundary == NOT_A_KNOT
+        b[n] =
+            S[n-2] * dx[n-1] / (dx[n-2] * (dx[n-2] + dx[n-1])) -
+            S[n-1] * ((dx[n-2] / dx[n-1] + 2) / (dx[n-2] + dx[n-1]))
+    elseif rightBoundary == FIRST_DERIVATIVE
+        b[n] = rightValue
+    elseif rightBoundary == FIRST_DIFFERENCE
+        b[n] = S[n-1]
+    elseif rightBoundary == SECOND_DERIVATIVE
+        b[n] = (rightValue * dx[n-1] + 6 * S[n-1] - 2 * b[n-1]) / 4
+    end
+    c = pp.c
+    for i = 1:n-1
+        c[1, i] = (3 * S[i] - b[i+1] - 2 * b[i]) / dx[i]
+        c[2, i] = (b[i+1] + b[i] - 2 * S[i]) / (dx[i]^2)
+    end
+    pp.a[1:end] = y
+    pp.x[1:end] = x
+end
+
+
+function evaluate(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
+    if z <= self.x[1]
+        return self.b[1] * (z - self.x[1]) + self.a[1]
+    elseif z >= self.x[end]
+        return self.b[end] * (z - self.x[end]) + self.a[end]
+    end
+    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
+    if z != self.x[i] && i > 1
+        i -= 1
+    end
+    h = z - self.x[i]
+    return self.a[i] + h * (self.b[i] + h * (self.c[1, i] + h * (self.c[2, i])))
+end
+
+function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
+    if z <= self.x[1]
+        return self.b[1]
+    elseif z >= self.x[end]
+        rightSlope = self.b[end]
+        return rightSlope
+    end
+    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
+    if z != self.x[i] && i > 1
+        i -= 1
+    end
+    h = z - self.x[i]
+    return self.b[i] + h * (2 * self.c[1, i] + h * (3 * self.c[2, i]))
+end
+function evaluateSecondDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
+    if z <= self.x[1]
+        return self.b[1]
+    elseif z >= self.x[end]
+        rightSlope = self.b[end]
+        return rightSlope
+    end
+    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
+    if z != self.x[i] && i > 1
+        i -= 1
+    end
+    h = z - self.x[i]
+    return 2 * self.c[1, i] + h * (3 * 2 * self.c[2, i])
+end
+
+(spl::PP{N,T,TX})(x::TZ) where {N,T,TX,TZ} = evaluate(spl, x)
+function (spl::PP{N,T,TX})(x::AbstractArray) where {N,T,TX}
+    evaluate.(spl, x)
+end
+
 
 function filterSlope(kind::C2, y::AbstractArray{T}, b::AbstractArray{T}, dx::AbstractArray{TX}, S::AbstractArray{T}) where {T,TX}
     #do nothing
@@ -189,21 +298,21 @@ function filterSlope(kind::C2MP, y::AbstractArray{T}, b::AbstractArray{T}, dx::A
     end
 end
 
-minmod(s::T,t::T) where{T} = s*t <= 0 ? zero(T) : sign(s)*min(abs(s),abs(t)) 
+minmod(s::T, t::T) where {T} = s * t <= 0 ? zero(T) : sign(s) * min(abs(s), abs(t))
 
 
 function filterSlope(kind::C2MP2, y::AbstractArray{T}, b::AbstractArray{T}, dx::AbstractArray{TX}, S::AbstractArray{T}) where {T,TX}
     #r = s/t and G = t*g(r)
     n = length(y)
-    b[1] = minmod(b[1], 3*S[1])
+    b[1] = minmod(b[1], 3 * S[1])
     b[n] = minmod(b[n], 3 * S[n-1])
 
     for i = 2:n-1
         Sim = S[i-1]
         Sip = S[i]
-        lowerBound = minmod(Sim,Sip)
-        upperBound = (sign(Sim) + sign(Sip))/2 * min(max(abs(Sim),abs(Sip)),3*min(abs(Sim),abs(Sip)))
-        b[i] = min(max(lowerBound,b[i]),upperBound)      
+        lowerBound = minmod(Sim, Sip)
+        upperBound = (sign(Sim) + sign(Sip)) / 2 * min(max(abs(Sim), abs(Sip)), 3 * min(abs(Sim), abs(Sip)))
+        b[i] = min(max(lowerBound, b[i]), upperBound)
     end
 end
 
@@ -284,15 +393,6 @@ function estimateDerivativeParabolic(x::AbstractArray{TX}, y::AbstractArray{T}) 
     return b
 end
 
-abstract type LimiterDerivative <: DerivativeKind end
-struct Hermite <: DerivativeKind end
-struct Bessel <: LimiterDerivative end
-struct HuynRational <: LimiterDerivative end
-struct VanLeer <: LimiterDerivative end
-struct VanAlbada <: LimiterDerivative end
-struct FritschButland <: LimiterDerivative end #Fritsch Butland 1980
-struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
-
 
 function limit(::HuynRational, s::T, t::T) where {T}
     st = s * t
@@ -332,12 +432,12 @@ end
 function fillDerivativeEstimate(limiter::LimiterDerivative, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
     n = length(S)
     for i = 2:n
-        s, t = S[i-1], S[i]
-        b[i] = limit(limiter, s, t)
+        b[i] = limit(limiter, S[i-1], S[i])
     end
 end
 
 function fillDerivativeEstimate(limiter::Bessel, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
+    # @. b[2:end-1] = (dx[1:end-1] * S[2:end] + dx[2:end] * S[1:end-1]) / (dx[1:end-1] + dx[2:end])
     n = length(S)
     for i = 2:n
         b[i] = (dx[i-1] * S[i] + dx[i] * S[i-1]) / (dx[i-1] + dx[i])
@@ -349,107 +449,13 @@ function fillDerivativeEstimate(limiter::Brodlie, dx::AbstractArray{TX}, S::Abst
     n = length(S)
     for i = 2:n
         s, t = S[i-1], S[i]
-        st = s*t
+        st = s * t
         if st == 0
             b[i] = s
         else
-        α = (dx[i-1] + 2 * dx[i])/(3*(dx[i-1]+dx[i]))
-        b[i] = (st) / (α * t + (1-α)*s)
+            α = (dx[i-1] + 2 * dx[i]) / (3 * (dx[i-1] + dx[i]))
+            b[i] = (st) / (α * t + (1 - α) * s)
         end
     end
 end
 
-function computeCubicPP(
-    pp::CubicPP{T,TX},
-    x::AbstractArray{TX},
-    y::AbstractArray{T},
-    leftBoundary::PPBoundary,
-    leftValue::T,
-    rightBoundary::PPBoundary,
-    rightValue::T,
-    limiter::LimiterDerivative,
-) where {T,TX}
-    n = length(y)
-    if n <= 2
-        return makeLinearCubicPP(x, y)
-    end
-
-    dx = x[2:end] - x[1:end-1]
-    S = (y[2:end] - y[1:end-1]) ./ dx
-    b = pp.b
-    fillDerivativeEstimate(limiter, dx, S, b)
-    if leftBoundary == NOT_A_KNOT
-        b[1] = S[2] * dx[1] / (dx[2] * (dx[2] + dx[1])) - S[1] * ((dx[2] / dx[1] + 2) / (dx[2] + dx[1]))
-    elseif leftBoundary == FIRST_DIFFERENCE
-        b[1] = S[1]
-    elseif leftBoundary == FIRST_DERIVATIVE
-        b[1] = leftValue
-    elseif leftBoundary == SECOND_DERIVATIVE
-        #c[1] = leftValue * 0.5
-        b[1] = (-leftValue / 2 * dx[1] - b[2] + 3 * S[1]) / 2
-    end
-    if rightBoundary == NOT_A_KNOT
-        b[n] =
-            S[n-2] * dx[n-1] / (dx[n-2] * (dx[n-2] + dx[n-1])) -
-            S[n-1] * ((dx[n-2] / dx[n-1] + 2) / (dx[n-2] + dx[n-1]))
-    elseif rightBoundary == FIRST_DERIVATIVE
-        b[n] = rightValue
-    elseif rightBoundary == FIRST_DIFFERENCE
-        b[n] = S[n-1]
-    elseif rightBoundary == SECOND_DERIVATIVE
-        b[n] = (rightValue * dx[n-1] + 6 * S[n-1] - 2 * b[n-1]) / 4
-    end
-    c = (3 * S - b[2:end] - 2 * b[1:end-1]) ./ dx
-    d = (b[2:end] + b[1:end-1] - 2 * S) ./ (dx .^ 2)
-
-    pp.a[1:end] = y
-    pp.c[1:end] = c
-    pp.d[1:end] = d
-    pp.x[1:end] = x
-end
-
-
-function evaluate(self::CubicPP{T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
-        return self.b[1] * (z - self.x[1]) + self.a[1]
-    elseif z >= self.x[end]
-        return self.b[end] * (z - self.x[end]) + self.a[end]
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return self.a[i] + h * (self.b[i] + h * (self.c[i] + h * (self.d[i])))
-end
-
-function evaluateDerivative(self::CubicPP{T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
-        return self.b[1]
-    elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return self.b[i] + h * (2 * self.c[i] + h * (3 * self.d[i]))
-end
-function evaluateSecondDerivative(self::CubicPP{T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
-        return self.b[1]
-    elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return 2 * self.c[i] + h * (3 * 2 * self.d[i])
-end
-
-(spl::CubicPP{T,TX})(x::TZ) where {T,TX,TZ} = evaluate(spl, x)
