@@ -3,6 +3,8 @@ using Cbc
 #using GLPK
 export newLaverySpline, newQuinticLaverySpline, evaluate, evaluateDerivative
 
+#TODO remove the various println, move to an extra param optional
+
 function newLaverySpline(x::Vector{TX}, y::Vector{T}) where {T,TX}
     pp = PP(3, T, TX, length(y))
     computeLaverySpline(pp, x, y)
