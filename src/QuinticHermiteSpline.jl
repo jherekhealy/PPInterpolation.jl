@@ -60,7 +60,7 @@ function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}) where 
     du[1] = -one(TX) #y''(x0)= y''(x1)
     d[n] = one(TX)
     dl[n-1] = -one(TX)
-    rhs[n] = 0
+    rhs[n] = zero(T)
     for i = 2:n-1
         rhs[i] = 2 * (5 * s[i] - 3 * y1[i] - 2 * y1[i+1]) / dx[i]^2 -
                  2 * (5 * s[i-1] - 3 * y1[i-1] - 2 * y1[i]) / dx[i-1]^2 -
