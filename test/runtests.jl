@@ -77,3 +77,18 @@ end
     end
     #AUTODIFF // where is autodiff useful (hagan wave read),  BigFloat
 end
+
+using Random
+@testset "FourHundred" begin
+    Random.seed!(1)
+    x = sort(rand(500));
+    y = rand(500);
+    spline = makeCubicPP(x, y, PPInterpolation.SECOND_DERIVATIVE, 0.0, PPInterpolation.SECOND_DERIVATIVE, 0.0, C2())
+    z = collect(range(start=x[1],stop=x[end],length=500));
+    yNew = Array{Float64}(undef,length(x));
+    @time yNew[1:end]= spline(z)
+    @time for i=1:length(z) yNew[i] = spline(z[i]) end
+    q = PPInterpolation.QuadraticLagrangeInterpolation(x,y)
+    @time PPInterpolation.evaluateMid!(yNew, q, z)
+
+end
