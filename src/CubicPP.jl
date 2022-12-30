@@ -24,7 +24,7 @@ struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
 struct PP{N,T<:Real,TX}
     a::AbstractArray{T}
     b::AbstractArray{T}
-    c::AbstractMatrix{T} #c[i,:] = coeff of x^{i+1}
+    c::AbstractMatrix{T} #c[:,i] = coeff of x^{i+1}
     x::AbstractArray{TX}
     PP(N::Int, T, TX, n::Int) = new{N,T,TX}(zeros(T, n), zeros(T, n), zeros(T, (N - 1, n - 1)), zeros(TX, n))
     PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::AbstractMatrix{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
@@ -158,8 +158,8 @@ function computePP(
     filterSlope(kind, y, fPrime, dx, S)
     c = pp.c
     for i = 1:n-1
-        c[1, i] = (3 * S[i] - fPrime[i+1] - 2 * fPrime[i]) / dx[i]
-        c[2, i] = (fPrime[i+1] + fPrime[i] - 2 * S[i]) / (dx[i]^2)
+        c[i, 1] = (3 * S[i] - fPrime[i+1] - 2 * fPrime[i]) / dx[i]
+        c[i, 2] = (fPrime[i+1] + fPrime[i] - 2 * S[i]) / (dx[i]^2)
     end
     pp.a[1:end] = y
     pp.b[1:end] = fPrime
@@ -210,8 +210,8 @@ function computePP(
     end
     c = pp.c
     for i = 1:n-1
-        c[1, i] = (3 * S[i] - b[i+1] - 2 * b[i]) / dx[i]
-        c[2, i] = (b[i+1] + b[i] - 2 * S[i]) / (dx[i]^2)
+        c[i, 1] = (3 * S[i] - b[i+1] - 2 * b[i]) / dx[i]
+        c[i, 2] = (b[i+1] + b[i] - 2 * S[i]) / (dx[i]^2)
     end
     pp.a[1:end] = y
     pp.x[1:end] = x
@@ -229,7 +229,7 @@ function evaluate(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return self.a[i] + h * (self.b[i] + h * (self.c[1, i] + h * (self.c[2, i])))
+    return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
 end
 
 function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
@@ -244,7 +244,7 @@ function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return self.b[i] + h * (2 * self.c[1, i] + h * (3 * self.c[2, i]))
+    return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2]))
 end
 function evaluateSecondDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
@@ -258,7 +258,7 @@ function evaluateSecondDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return 2 * self.c[1, i] + h * (3 * 2 * self.c[2, i])
+    return 2 * self.c[i, 1] + h * (3 * 2 * self.c[i, 2])
 end
 
 (spl::PP{N,T,TX})(x::TZ) where {N,T,TX,TZ} = evaluate(spl, x)

@@ -10,10 +10,10 @@ function computeDEF(
     dx::Vector{T}
 ) where {T}
     for i = 1:length(f1)-1
-        c[1, i] = f2[i] / 2
-        c[2, i] = (f2[i+1] - 3 * f2[i]) / (2 * dx[i]) + 2 * (5 * S[i] - 3 * f1[i] - 2 * f1[i+1]) / dx[i]^2
-        c[3, i] = (3 * f2[i] - 2 * f2[i+1]) / (2 * dx[i]^2) + (8 * f1[i] + 7 * f1[i+1] - 15 * S[i]) / dx[i]^3
-        c[4, i] = (f2[i+1] - f2[i]) / (2 * dx[i]^3) + 3 * (2 * S[i] - f1[i+1] - f1[i]) / dx[i]^4
+        c[i, 1] = f2[i] / 2
+        c[i, 2] = (f2[i+1] - 3 * f2[i]) / (2 * dx[i]) + 2 * (5 * S[i] - 3 * f1[i] - 2 * f1[i+1]) / dx[i]^2
+        c[i, 3] = (3 * f2[i] - 2 * f2[i+1]) / (2 * dx[i]^2) + (8 * f1[i] + 7 * f1[i+1] - 15 * S[i]) / dx[i]^3
+        c[i, 4] = (f2[i+1] - f2[i]) / (2 * dx[i]^3) + 3 * (2 * S[i] - f1[i+1] - f1[i]) / dx[i]^4
     end
 end
 
@@ -90,7 +90,7 @@ function evaluate(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return self.a[i] + h * (self.b[i] + h * (self.c[1, i] + h * (self.c[2, i] + h * (self.c[3, i] + h * self.c[4, i]))))
+    return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2] + h * (self.c[i, 3] + h * self.c[i, 4]))))
 end
 
 function evaluateDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
@@ -105,7 +105,7 @@ function evaluateDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return self.b[i] + h * (2 * self.c[1, i] + h * (3 * self.c[2, i] + h * (4 * self.c[3, i] + h * 5 * self.c[4, i])))
+    return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2] + h * (4 * self.c[i, 3] + h * 5 * self.c[i, 4])))
 end
 function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
@@ -117,7 +117,7 @@ function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return 2 * self.c[1, i] + h * (3 * 2 * self.c[2, i] + h * (4 * 3 * self.c[3, i] + h * 5 * 4 * self.c[4, i]))
+    return 2 * self.c[i, 1] + h * (3 * 2 * self.c[i, 2] + h * (4 * 3 * self.c[i, 3] + h * 5 * 4 * self.c[i, 4]))
 end
 function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
@@ -129,5 +129,5 @@ function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
         i -= 1
     end
     h = z - self.x[i]
-    return ((3 * 2 * self.c[2, i] + h * (4 * 3 * 2 * self.c[3, i] + h * 5 * 4 * 3 * self.c[4, i])))
+    return ((3 * 2 * self.c[i, 2] + h * (4 * 3 * 2 * self.c[i, 3] + h * 5 * 4 * 3 * self.c[i, 4])))
 end
