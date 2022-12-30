@@ -49,7 +49,7 @@ function computeLinearPP(pp::PP{N,T,TX}, x::Vector{TX}, y::Vector{T}) where {N,T
     if n <= 1
         pp.a[1:end] = y
         pp.b[1:end] = zeros(n)
-        pp.c[1:end, 1:end] = zeros((N - 1), n - 1)
+        pp.c[1:end, 1:end] = zeros(n-1, (N - 1))
         pp.x[1:end] = x
     elseif n == 2
         t = y[2] - y[1]
@@ -60,7 +60,7 @@ function computeLinearPP(pp::PP{N,T,TX}, x::Vector{TX}, y::Vector{T}) where {N,T
         b[2] = b[1]
         pp.a[1:end] = y
         pp.b[1:end] = b
-        pp.c[1:end, 1:end] = zeros((N - 1), n - 1)
+        pp.c[1:end, 1:end] = zeros(n-1, (N - 1))
         pp.x[1:end] = x
     else
         # on xi, xi+1, f(x)= yi (xi+1-x) + yi (x-xi) = A + B (x-xi) => B = (yi-yi+1)/(xi-xi+1)
@@ -70,7 +70,7 @@ function computeLinearPP(pp::PP{N,T,TX}, x::Vector{TX}, y::Vector{T}) where {N,T
         end
         pp.a[1:end] = y
         pp.b[1:end] = b
-        pp.c[1:end, 1:end] = zeros((N - 1), n - 1)
+        pp.c[1:end, 1:end] = zeros(n-1, (N - 1))
         pp.x[1:end] = x
     end
 end
@@ -194,7 +194,6 @@ function computePP(
     elseif leftBoundary == FIRST_DERIVATIVE
         b[1] = leftValue
     elseif leftBoundary == SECOND_DERIVATIVE
-        #c[1] = leftValue * 0.5
         b[1] = (-leftValue / 2 * dx[1] - b[2] + 3 * S[1]) / 2
     end
     if rightBoundary == NOT_A_KNOT
