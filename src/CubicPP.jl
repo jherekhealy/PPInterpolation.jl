@@ -459,3 +459,8 @@ function fillDerivativeEstimate(limiter::Brodlie, dx::AbstractArray{TX}, S::Abst
     end
 end
 
+
+@inline function evaluate(self::PPInterpolation.PP{3,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+     h = z - self.x[i]
+     return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
+ end
