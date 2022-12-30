@@ -26,7 +26,7 @@ struct PP{N,T<:Real,TX}
     b::AbstractArray{T}
     c::AbstractMatrix{T} #c[:,i] = coeff of x^{i+1}
     x::AbstractArray{TX}
-    PP(N::Int, T, TX, n::Int) = new{N,T,TX}(zeros(T, n), zeros(T, n), zeros(T, (N - 1, n - 1)), zeros(TX, n))
+    PP(N::Int, T, TX, n::Int) = new{N,T,TX}(zeros(T, n), zeros(T, n), zeros(T, (n- 1, N - 1)), zeros(TX, n))
     PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::AbstractMatrix{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
         new{N,T,TX}(a, b, c, x)
 end
