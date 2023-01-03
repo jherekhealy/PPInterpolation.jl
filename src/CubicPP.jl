@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 export makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
-export evaluateDerivative, evaluateSecondDerivative
+export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot
 
 abstract type DerivativeKind end
 struct C2 <: DerivativeKind end
@@ -35,7 +35,6 @@ end
 Base.length(p::PP) = Base.length(p.x)
 Base.size(p::PP) = Base.size(p.x)
 Base.broadcastable(p::PP) = Ref(p)
-
 
 
 function makeLinearPP(x::Vector{TX}, y::Vector{T}) where {T,TX}
@@ -74,6 +73,10 @@ function computeLinearPP(pp::PP{N,T,TX}, x::Vector{TX}, y::Vector{T}) where {N,T
         pp.x[1:end] = x
     end
 end
+
+CubicSplineNatural(x::Vector{TX}, y::Vector{T}) where {TX,T} = makeCubicPP(x,y,SECOND_DERIVATIVE,zero(T),SECOND_DERIVATIVE,zero(T),C2()) 
+
+CubicSplineNotAKnot(x::Vector{TX}, y::Vector{T})  where {TX,T} = makeCubicPP(x,y,NOT_A_KNOT,zero(T),NOT_A_KNOT,zero(T),C2())
 
 function makeCubicPP(
     x::Vector{TX},

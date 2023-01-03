@@ -88,6 +88,9 @@ using Random
         yNew = Array{Float64}(undef,length(x));
         @time yNew[1:end]= spline(z)
         @time for i=1:length(z) yNew[i] = spline(z[i]) end
-        q = PPInterpolation.QuadraticLagrangePP(x,y)
-        @time PPInterpolation.evaluateMid!(yNew, q, z)
+        q = QuadraticLagrangePP(x,y)
+        @time PPInterpolation.evaluate!(q,yNew, z)
+        val = evaluateDerivative(q, 0.5)
+        autoval = ForwardDiff.derivative(q, 0.5)       
+        @test isapprox(val, autoval, atol = 1e-12)
 end
