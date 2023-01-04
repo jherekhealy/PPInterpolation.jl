@@ -79,7 +79,7 @@ end
 end
 
 using Random
-@testset "FourHundred" begin
+@testset "FiveHundred" begin
         Random.seed!(1)
         x = sort(rand(500));
         y = rand(500);
@@ -87,9 +87,11 @@ using Random
         z = collect(range(x[1],stop=x[end],length=500));
         yNew = Array{Float64}(undef,length(x));
         @time yNew[1:end]= spline(z)
+        @test isapprox(y[10],spline(x[10]),atol=1e-15)
         @time for i=1:length(z) yNew[i] = spline(z[i]) end
         q = QuadraticLagrangePP(x,y)
-        @time PPInterpolation.evaluate!(q,yNew, z)
+        @time PPInterpolation.evaluateSorted!(q,yNew, z)
+        @test isapprox(y[10],q(x[10]),atol=1e-15)
         val = evaluateDerivative(q, 0.5)
         autoval = ForwardDiff.derivative(q, 0.5)       
         @test isapprox(val, autoval, atol = 1e-12)

@@ -1,8 +1,15 @@
 #Quadratic Lagrange Interpolation. Warning, x and y are not copied. Assumes that x is sorted in ascending order.
 export QuadraticLagrangePP, evaluate, evaluate!, evaluateAtLeft!, evaluateAtMid!, findIndex
 
+"""
+Controls which piece is used for a given interpolation point `z`. The index `i` of the piece is used to interpolate using x[i-1],x[i],x[i+1]
+LEFT_KNOT, we chose the index such that  x[i] <= z < x[i+1]
+MID_KNOT, we chose the index such that  (x[i]+x[i-1])/2 <= z < (x[i]+x[i+1])/2
+When z <= x[2], the index is 2, when z >= x[end-1], the index is length(x)-1
+"""
 @enum LagrangeKnot LEFT_KNOT = 0 MID_KNOT = 1 
 
+"""A piecewise quadratic lagrange interpolation based on the abscissae `x` and ordinates `y`. """
 struct QuadraticLagrangePP{TX, T}
     x::Vector{TX}
     y::Vector{T}
@@ -21,26 +28,29 @@ function (spl::QuadraticLagrangePP{TX,T})(x::AbstractArray) where {TX,T}
     evaluate.(spl, x)
 end
 
-function evaluate!(pp::QuadraticLagrangePP{TX,T}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}  
+"evaluate a sorted array `za` with quadratic lagrange interpolation, putting the results in `v``. `za`` must be sorted in ascending order"
+function evaluateSorted!(pp::QuadraticLagrangePP{TX,T}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}  
     if pp.knotStyle == LEFT_KNOT
-        evaluateAtLeft!(v,pp.x, pp.y, za)
+        evaluateSortedAtLeft!(v,pp.x, pp.y, za)
     else
-        evaluateAtMid!(v,pp.x, pp.y, za)
+        evaluateSortedAtMid!(v,pp.x, pp.y, za)
     end
 end
 
-function evaluate(pp::QuadraticLagrangePP{TX,T}, z::AbstractArray{TZ}) where {TX,T,TZ}
+"evaluate a sorted array `za` with quadratic lagrange interpolation, returning the result of the interpolation as a new array. `za` must be sorted in ascending order"
+function evaluateSorted(pp::QuadraticLagrangePP{TX,T}, z::AbstractArray{TZ}) where {TX,T,TZ}
     v = Array{T}(undef, length(z))
     evaluate!(v, pp.x, pp.y, za)   
 end
 
+"evaluate the quadratic lagrange interpolation at a given point `z`"
 function evaluate(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {TX,T,TZ}
     ppIndex = findIndex(pp, z)
     evaluate(pp,ppIndex,z)
 end
 
 
-
+"evaluate the quadratic lagrange interpolation first derivative at a given point `z`"
 function evaluateDerivative(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {TX,T,TZ}
     ppIndex = findIndex(pp, z)
     evaluateDerivative(pp,ppIndex,z)
@@ -51,6 +61,7 @@ function evaluateSecondDerivative(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {T
     evaluateSecondDerivative(pp,ppIndex,z)
 end
 
+"find the index of the piece of the quadratic lagrange interpolation for the given point `z`. The `knotStyle` will control which piece is returned."
 @inline function findIndex(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {TX,T,TZ}
     if pp.knotStyle == LEFT_KNOT
         ppIndex = searchsortedlast(pp.x,z) #   x[i]<=z<x[i+1]
@@ -67,6 +78,7 @@ end
     ppIndex
 end
 
+"evaluate the quadratic lagrange interpolation piece corresponding to index `ppIndex` at a given point `z`"
 evaluate(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluate(ppIndex,pp.x,pp.y,z)
 evaluateDerivative(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluateDerivative(ppIndex,pp.x,pp.y,z)
 evaluateSecondDerivative(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluateSecondDerivative(ppIndex,pp.x,pp.y,z)
@@ -83,7 +95,7 @@ end
     return 2y[ppIndex] / ((x[ppIndex-1] - x[ppIndex]) * (x[ppIndex+1] - x[ppIndex])) +2y[ppIndex-1]  / ((x[ppIndex] - x[ppIndex-1]) * (x[ppIndex+1] - x[ppIndex-1])) + 2y[ppIndex+1] / ((x[ppIndex-1] - x[ppIndex+1]) * (x[ppIndex] - x[ppIndex+1]))
  end
  
-function evaluateAtMid!(v::AbstractArray{T}, x::AbstractArray{TX},y::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}
+function evaluateSortedAtMid!(v::AbstractArray{T}, x::AbstractArray{TX},y::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}
     ppIndex = 2
     for j = 1:length(za)
         z = za[j]
@@ -97,7 +109,7 @@ function evaluateAtMid!(v::AbstractArray{T}, x::AbstractArray{TX},y::AbstractArr
     end
 end
 
-function evaluateAtLeft!(v::AbstractArray{T}, x::AbstractArray{TX},y::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}
+function evaluateSortedAtLeft!(v::AbstractArray{T}, x::AbstractArray{TX},y::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}
     ppIndex = 1
     for j = 1:length(za)
         z = za[j]

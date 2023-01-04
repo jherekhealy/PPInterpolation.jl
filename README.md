@@ -19,28 +19,29 @@ with the following boundary conditions:
 * first difference estimate at end point
  
 Also supported are C3 Hermite quintic spline with  given first derivatives at all knots, plus second derivatives at end-points. 
-Cubic and quintic Lavery splines are available at [Lavery.jl]().
+Cubic and quintic Lavery splines are available in the package [Lavery.jl](https://github.com/jherekhealy/LaverySpline.jl).
 
-
-You may find other Julia interpolation packages relevant, such as Interpolations.jl
 
 ## Why another Julia interpolation package?
 At the time this package was created (and still today), there are surprisingly few interpolation packages for Julia which support cubic splines. And the existing ones do not provide any control over the boundary conditions. The existing packages are not focused on cubic splines but tend to be more general.
 
-* Interpolations.jl does not support C2 cubic splines with knots specified by a vector  (gridded in their terminology). 
-* DataInterpolations.jl does not support specifying endpoints conditions. 
-* Dierckx.jl is somewhat slow and supports only the standard C2 spline. It offers other features however, such as 2D splines.
+* [Interpolations.jl](https://github.com/JuliaMath/Interpolations.jl) does not support C2 cubic splines with knots specified by a vector  (gridded in their terminology). 
+* [DataInterpolations.jl](https://github.com/PumasAI/DataInterpolations.jl) does not support specifying endpoints conditions. 
+* [Dierckx.jl](https://github.com/kbarbary/Dierckx.jl) is somewhat slow and supports only the standard C2 spline. It offers other features however, such as 2D splines.
 
 This package support various boundary conditions (natural, not-a-knot, specific first or second derivatives), and not only C2 cubic splines but also C1 splines, monotonocity preserving splines. The flexible API allows to evaluate faster if we know the vector to evaluate is sorted.
 
+Below is an example of performance using `x = sort(rand(500))` and `y=rand(500)` interpolating an array `z = collect(range(x[1],stop=x[end],length=500))`
+
 | Package | Construction | Evaluation |
 |:--------|--------------:|-----------------------:|
-| Dierckx  Spline1D | 48.692 μs (8 allocations: 97.11 KiB) |  21.405 μs (2 allocations: 4.09 KiB) |
-| DataInterpolation CubicSpline |  26.123 μs (524 allocations: 73.11 KiB) |21.591 μs (3 allocations: 4.14 KiB)|
-| Interpolations SteffenMonotonicInterpolation | 6.641 μs (5 allocations: 16.30 KiB) |   21.427 μs (3 allocations: 4.16 KiB)|
-| PPInterpolation C2() | 21.610 μs (26 allocations: 89.41 KiB) |20.638 μs (2 allocations: 4.09 KiB) |
-| PPInterpolation VanAlbada() | 7.144 μs (13 allocations: 48.64 KiB) | 20.638 μs (2 allocations: 4.09 KiB) |
-| PPInterpolation QuadraticLagrangePP() | 54.487 ns (1 allocation: 32 bytes)| 2.942 μs (0 allocations: 0 bytes)|
+| Dierckx  Spline1D(x,y) | 48.692 μs (8 allocations: 97.11 KiB) |  21.405 μs (2 allocations: 4.09 KiB) |
+| DataInterpolation CubicSpline(y,x) |  26.123 μs (524 allocations: 73.11 KiB) |21.591 μs (3 allocations: 4.14 KiB)|
+| Interpolations interpolate(x,y,SteffenMonotonicInterpolation()) | 6.641 μs (5 allocations: 16.30 KiB) |   21.427 μs (3 allocations: 4.16 KiB)|
+| PPInterpolation C2() | 21.610 μs (26 allocations: 89.41 KiB) | 15.503 μs (1 allocation: 48 bytes) |
+| PPInterpolation VanAlbada() | 7.144 μs (13 allocations: 48.64 KiB) | 15.879 μs (1 allocation: 48 bytes) |
+| PPInterpolation QuadraticLagrangePP(x,y) | 54.487 ns (1 allocation: 32 bytes) | 15.711 μs (1 allocation: 48 bytes) |
+| PPInterpolation QuadraticLagrangePP(x,y) evaluateSorted | |  2.942 μs (0 allocations: 0 bytes)|
 
 
 
