@@ -78,7 +78,7 @@ x = [3.0, 5.0, 6.0, 8.0, 9.0, 11.0, 12.0, 14.0, 15.0]
 f = [10.0, 10.0, 10.0, 10.0, 10.5, 15.0, 50.0, 60.0, 85.0]
 spline = QuadraticLagrangePP(x, f)
 spline(4.0)
-y = Array{Float64}(undef, 100)
-z = collect(range(3.0,stop=15.0,length=100))
-evaluate!(spline,y,z)
+y = Array{Float64}(undef, 100) #the output
+z = collect(range(3.0,stop=15.0,length=100)) #this is sorted input
+evaluateSorted!(spline,y,z)
 ```
