@@ -1,5 +1,5 @@
 #Quadratic Lagrange Interpolation. Warning, x and y are not copied. Assumes that x is sorted in ascending order.
-export QuadraticLagrangePP, evaluate, evaluate!, evaluateAtLeft!, evaluateAtMid!, findIndex
+export QuadraticLagrangePP, evaluate, evaluateSortedAtLeft!, evaluateSortedAtMid!, findIndex, evaluateSorted, evaluateSorted!, evaluatePiece, evaluateDerivativePiece, evaluateSecondDerivativePiece
 
 """
 Controls which piece is used for a given interpolation point `z`. The index `i` of the piece is used to interpolate using x[i-1],x[i],x[i+1]
@@ -40,25 +40,25 @@ end
 "evaluate a sorted array `za` with quadratic lagrange interpolation, returning the result of the interpolation as a new array. `za` must be sorted in ascending order"
 function evaluateSorted(pp::QuadraticLagrangePP{TX,T}, z::AbstractArray{TZ}) where {TX,T,TZ}
     v = Array{T}(undef, length(z))
-    evaluate!(v, pp.x, pp.y, za)   
+    evaluateSorted!(v, pp.x, pp.y, za)   
 end
 
 "evaluate the quadratic lagrange interpolation at a given point `z`"
 function evaluate(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {TX,T,TZ}
     ppIndex = findIndex(pp, z)
-    evaluate(pp,ppIndex,z)
+    evaluatePiece(pp,ppIndex,z)
 end
 
 
 "evaluate the quadratic lagrange interpolation first derivative at a given point `z`"
 function evaluateDerivative(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {TX,T,TZ}
     ppIndex = findIndex(pp, z)
-    evaluateDerivative(pp,ppIndex,z)
+    evaluateDerivativePiece(pp,ppIndex,z)
 end
 
 function evaluateSecondDerivative(pp::QuadraticLagrangePP{TX,T}, z::TZ) where {TX,T,TZ}
     ppIndex = findIndex(pp, z)
-    evaluateSecondDerivative(pp,ppIndex,z)
+    evaluateSecondDerivativePiece(pp,ppIndex,z)
 end
 
 "find the index of the piece of the quadratic lagrange interpolation for the given point `z`. The `knotStyle` will control which piece is returned."
@@ -79,9 +79,9 @@ end
 end
 
 "evaluate the quadratic lagrange interpolation piece corresponding to index `ppIndex` at a given point `z`"
-evaluate(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluate(ppIndex,pp.x,pp.y,z)
-evaluateDerivative(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluateDerivative(ppIndex,pp.x,pp.y,z)
-evaluateSecondDerivative(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluateSecondDerivative(ppIndex,pp.x,pp.y,z)
+evaluatePiece(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluate(ppIndex,pp.x,pp.y,z)
+evaluateDerivativePiece(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluateDerivative(ppIndex,pp.x,pp.y,z)
+evaluateSecondDerivativePiece(pp::QuadraticLagrangePP{TX,T}, ppIndex::Int, z::TZ) where {TX,T,TZ} = evaluateSecondDerivative(ppIndex,pp.x,pp.y,z)
 
 @inline function evaluate(ppIndex::Int, x::AbstractArray{TX},y::AbstractArray{T},z::TZ) where {TX,T,TZ} 
    return y[ppIndex] * (x[ppIndex-1] - z) * (x[ppIndex+1] - z) / ((x[ppIndex-1] - x[ppIndex]) * (x[ppIndex+1] - x[ppIndex])) + y[ppIndex-1] * (x[ppIndex] - z) * (x[ppIndex+1] - z) / ((x[ppIndex] - x[ppIndex-1]) * (x[ppIndex+1] - x[ppIndex-1])) + y[ppIndex+1] * (x[ppIndex-1] - z) * (x[ppIndex] - z) / ((x[ppIndex-1] - x[ppIndex+1]) * (x[ppIndex] - x[ppIndex+1]))
@@ -91,9 +91,9 @@ end
     return -y[ppIndex] * ((x[ppIndex-1] - z) + (x[ppIndex+1] - z)) / ((x[ppIndex-1] - x[ppIndex]) * (x[ppIndex+1] - x[ppIndex])) - y[ppIndex-1] * ((x[ppIndex] - z) + (x[ppIndex+1] - z)) / ((x[ppIndex] - x[ppIndex-1]) * (x[ppIndex+1] - x[ppIndex-1])) - y[ppIndex+1] * ((x[ppIndex-1] - z) + (x[ppIndex] - z)) / ((x[ppIndex-1] - x[ppIndex+1]) * (x[ppIndex] - x[ppIndex+1]))
  end
 
- @inline function evaluateSecondDerivative(ppIndex::Int, x::AbstractArray{TX},y::AbstractArray{T},z::TZ) where {TX,T,TZ} 
+@inline function evaluateSecondDerivative(ppIndex::Int, x::AbstractArray{TX},y::AbstractArray{T},z::TZ) where {TX,T,TZ} 
     return 2y[ppIndex] / ((x[ppIndex-1] - x[ppIndex]) * (x[ppIndex+1] - x[ppIndex])) +2y[ppIndex-1]  / ((x[ppIndex] - x[ppIndex-1]) * (x[ppIndex+1] - x[ppIndex-1])) + 2y[ppIndex+1] / ((x[ppIndex-1] - x[ppIndex+1]) * (x[ppIndex] - x[ppIndex+1]))
- end
+end
  
 function evaluateSortedAtMid!(v::AbstractArray{T}, x::AbstractArray{TX},y::AbstractArray{T}, za::AbstractArray{TZ}) where {TX,T,TZ}
     ppIndex = 2

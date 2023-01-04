@@ -39,6 +39,7 @@ Below is an example of performance using `x = sort(rand(500))` and `y=rand(500)`
 | DataInterpolation CubicSpline(y,x) |  26.123 μs (524 allocations: 73.11 KiB) |21.591 μs (3 allocations: 4.14 KiB)|
 | Interpolations interpolate(x,y,SteffenMonotonicInterpolation()) | 6.641 μs (5 allocations: 16.30 KiB) |   21.427 μs (3 allocations: 4.16 KiB)|
 | PPInterpolation C2() | 21.610 μs (26 allocations: 89.41 KiB) | 15.503 μs (1 allocation: 48 bytes) |
+| PPInterpolation C2() evaluateSorted|  | 4.670 μs (0 allocations: 0 bytes) |
 | PPInterpolation VanAlbada() | 7.144 μs (13 allocations: 48.64 KiB) | 15.879 μs (1 allocation: 48 bytes) |
 | PPInterpolation QuadraticLagrangePP(x,y) | 54.487 ns (1 allocation: 32 bytes) | 15.711 μs (1 allocation: 48 bytes) |
 | PPInterpolation QuadraticLagrangePP(x,y) evaluateSorted | |  2.942 μs (0 allocations: 0 bytes)|

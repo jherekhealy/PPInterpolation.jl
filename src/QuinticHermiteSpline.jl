@@ -41,7 +41,7 @@ function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}, y2left
     end
     tri = Tridiagonal(dl, dd, du)
     y2 = tri \ rhs
-    c = zeros(T, (4, n))
+    c = zeros(T, (n, 4))
     #q''(xi+1)=f''i+1
     computeDEF(c, y1, y2, s, dx)
     return PP(5, copy(y), copy(y1), c, copy(x))
@@ -72,7 +72,7 @@ function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}) where 
     end
     tri = Tridiagonal(dl, d, du)
     y2 = tri \ rhs
-    c = zeros(T, (4, n))
+    c = zeros(T, (n,4))
     #q''(xi+1)=f''i+1
     computeDEF(c, y1, y2, s, dx)
     return PP(5, copy(y), copy(y1), c, copy(x))

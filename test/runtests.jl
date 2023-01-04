@@ -88,9 +88,14 @@ using Random
         yNew = Array{Float64}(undef,length(x));
         @time yNew[1:end]= spline(z)
         @test isapprox(y[10],spline(x[10]),atol=1e-15)
+        yNewCopy = Array{Float64}(undef,length(x));
         @time for i=1:length(z) yNew[i] = spline(z[i]) end
+        @time evaluateSorted!(spline,yNewCopy, z)
+        for i=1:length(yNew)
+            @test isapprox(yNew[i],yNewCopy[i],atol=0.0)    
+        end
         q = QuadraticLagrangePP(x,y)
-        @time PPInterpolation.evaluateSorted!(q,yNew, z)
+        @time evaluateSorted!(q,yNew, z)
         @test isapprox(y[10],q(x[10]),atol=1e-15)
         val = evaluateDerivative(q, 0.5)
         autoval = ForwardDiff.derivative(q, 0.5)       
