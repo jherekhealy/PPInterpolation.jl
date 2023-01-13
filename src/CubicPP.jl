@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
+export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
 export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluatePiece
 
 abstract type DerivativeKind end
@@ -220,7 +220,7 @@ function computePP(
 end
 
 "evaluate a sorted array `za` with piecewise cubic interpolation, putting the results in `v``. `za`` must be sorted in ascending order"
-function evaluateSorted!(self::PP{3,T,TX}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {T,TX,TZ}
+function evaluateSorted!(self::PP{N,T,TX}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {N,T,TX,TZ}
     ppIndex = 1
     for j = 1:length(za)
         z = za[j]
@@ -233,7 +233,7 @@ function evaluateSorted!(self::PP{3,T,TX}, v::AbstractArray{T}, za::AbstractArra
     end
 end
 
-function evaluate(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
+function evaluate(self::PP{N,T,TX}, z::TZ) where {N,T,TX,TZ}
     if z <= self.x[1]
         return self.b[1] * (z - self.x[1]) + self.a[1]
     elseif z >= self.x[end]
@@ -246,9 +246,20 @@ function evaluate(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
     return evaluatePiece(self, i, z)
 end
 
+
 @inline function evaluatePiece(self::PP{3,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
     h = z - self.x[i]
     return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
+end
+
+@inline function evaluatePiece(self::PP{2,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    h = z - self.x[i]
+    return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] ))
+end
+
+@inline function evaluatePiece(self::PP{1,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    h = z - self.x[i]
+    return self.a[i] + h * self.b[i]
 end
 
 function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
