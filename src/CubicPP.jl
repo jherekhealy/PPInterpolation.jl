@@ -22,12 +22,12 @@ struct FritschButland <: LimiterDerivative end #Fritsch Butland 1980
 struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
 
 struct PP{N,T<:Number,TX}
-    a::Vector{T}
-    b::Vector{T}
+    a::AbstractVector{T}
+    b::AbstractVector{T}
     c::Matrix{T} #c[:,i] = coeff of x^{i+1}
-    x::Vector{TX}
+    x::AbstractVector{TX}
     PP(N::Int, T, TX, n::Int) = new{N,T,TX}(zeros(T, n), zeros(T, n), zeros(T, (n- 1, N - 1)), zeros(TX, n))
-    PP(N::Int, a::Vector{T}, b::Vector{T}, c::Matrix{T}, x::Vector{TX}) where {T<:Real,TX} =
+    PP(N::Int, a::AbstractVector{T}, b::AbstractVector{T}, c::Matrix{T}, x::AbstractVector{TX}) where {T<:Real,TX} =
         new{N,T,TX}(a, b, c, x)
 end
 
@@ -37,13 +37,13 @@ Base.size(p::PP) = Base.size(p.x)
 Base.broadcastable(p::PP) = Ref(p)
 
 
-function makeLinearPP(x::Vector{TX}, y::Vector{T}) where {T,TX}
+function makeLinearPP(x::AbstractVector{TX}, y::AbstractVector{T}) where {T,TX}
     pp = PP(2, T, TX, length(y))
     computeLinearPP(pp, x, y)
     return pp
 end
 
-function computeLinearPP(pp::PP{N,T,TX}, x::Vector{TX}, y::Vector{T}) where {N,T,TX}
+function computeLinearPP(pp::PP{N,T,TX}, x::AbstractVector{TX}, y::AbstractVector{T}) where {N,T,TX}
     n = length(x)
     if n <= 1
         pp.a[1:end] = y
@@ -74,13 +74,13 @@ function computeLinearPP(pp::PP{N,T,TX}, x::Vector{TX}, y::Vector{T}) where {N,T
     end
 end
 
-CubicSplineNatural(x::Vector{TX}, y::Vector{T}) where {TX,T} = makeCubicPP(x,y,SECOND_DERIVATIVE,zero(T),SECOND_DERIVATIVE,zero(T),C2()) 
+CubicSplineNatural(x::AbstractVector{TX}, y::AbstractVector{T}) where {TX,T} = makeCubicPP(x,y,SECOND_DERIVATIVE,zero(T),SECOND_DERIVATIVE,zero(T),C2()) 
 
-CubicSplineNotAKnot(x::Vector{TX}, y::Vector{T})  where {TX,T} = makeCubicPP(x,y,NOT_A_KNOT,zero(T),NOT_A_KNOT,zero(T),C2())
+CubicSplineNotAKnot(x::AbstractVector{TX}, y::AbstractVector{T})  where {TX,T} = makeCubicPP(x,y,NOT_A_KNOT,zero(T),NOT_A_KNOT,zero(T),C2())
 
 function makeCubicPP(
-    x::Vector{TX},
-    y::Vector{T},
+    x::AbstractVector{TX},
+    y::AbstractVector{T},
     leftBoundary::PPBoundary,
     leftValue::T,
     rightBoundary::PPBoundary,
