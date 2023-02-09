@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
-export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluatePiece
+export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluatePiece, evaluateIntegral
 
 abstract type DerivativeKind end
 struct C2 <: DerivativeKind end
@@ -276,6 +276,57 @@ function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
     h = z - self.x[i]
     return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2]))
 end
+
+function evaluateIntegral(self::PP{N,T,TX}, z1::TZ, z2::TZ) where {N,T,TX,TZ}
+    # get final type of calculation
+    U = promote_type(T, promote_type(TX, TZ))
+    # check if z1 < z2
+    if z1 < z2
+        sign = one(U)
+    elseif z2 < z1
+        sign = -one(U)
+        z1, z2 = z2, z1
+    else
+        return zero(U)
+    end
+
+    # for now throw error if z1 or z2 are out of bounds
+    if z1 < self.x[1] || z2 > self.x[end]
+        throw(
+            AssertionError(
+                "The integration bounds must be inside of the interpolation interval.",
+            ),
+        )
+    end
+
+    # find edge polynomials
+    i1 = searchsortedfirst(self.x, z1)
+    i2 = searchsortedfirst(self.x, z2)
+    if z1 != self.x[i1]
+        # the edge case i1 = 1 can not happen, as this would mean z1 < x[1] and in this case an error would already been thrown
+        i1 -= 1
+    end
+
+    # calculate integral
+    integral::U = zero(U)
+    # iterate over the involved polynomials
+    for i in i1:i2 - 1
+        # calculate integration bounds of current integral
+        # this makes sure that the lower integration bound of the first polynomial, i.e. the case i = i1, is z1        
+        lower_bound = max(z1, self.x[i])
+        # smiliar this makes sure taht the upper bound of the last polynoimial, i.e. the case i = i2 - 1, is z2
+        upper_bound = min(z2, self.x[i + 1])
+        h1 = upper_bound - self.x[i]
+        h2 = lower_bound - self.x[i]        
+        # f(x) = a + b (x-xi) + c1 (x-xi)^2 + c2 (x-xi)^3 + ...
+        # indefinite integral with integraion constant -a xi + ...
+        # F(x) = a (x-xi) + b/2 (x-xi)^2 + c1/3 (x-xi)^3 + c2/4 (x-xi)^4
+        integral += self.a[i] * (h1 - h2) + self.b[i] / 2 * (h1 ^ 2 - h2 ^ 2) + sum(self.c[i, j] / (j + 2) * (h1 ^ (j + 2) - h2 ^ (j + 2)) for j in 1:N-1)
+    end
+    # return the integral multiplied by the correct sign, if the integration bounds were swapped
+    return integral * sign
+end
+
 function evaluateSecondDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
         return self.b[1]
