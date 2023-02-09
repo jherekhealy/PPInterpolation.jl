@@ -21,7 +21,7 @@ struct VanAlbada <: LimiterDerivative end
 struct FritschButland <: LimiterDerivative end #Fritsch Butland 1980
 struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
 
-struct PP{N,T<:Real,TX}
+struct PP{N,T<:Number,TX}
     a::Vector{T}
     b::Vector{T}
     c::Matrix{T} #c[:,i] = coeff of x^{i+1}
