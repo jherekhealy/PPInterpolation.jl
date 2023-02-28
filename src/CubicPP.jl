@@ -24,14 +24,14 @@ struct VanAlbada <: LimiterDerivative end
 struct FritschButland <: LimiterDerivative end #Fritsch Butland 1980
 struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
 
-struct PP{N,T<:Number,TX}
-    a::AbstractVector{T}
-    b::AbstractVector{T}
+struct PP{N,T,TX,VT<:AbstractArray{T},VX<:AbstractArray{TX}}
+    a::VT
+    b::VT
     c::Matrix{T} #c[:,i] = coeff of x^{i+1}
-    x::AbstractVector{TX}
-    PP(N::Int, T, TX, n::Int) = new{N,T,TX}(zeros(T, n), zeros(T, n), zeros(T, (n- 1, N - 1)), zeros(TX, n))
-    PP(N::Int, a::AbstractVector{T}, b::AbstractVector{T}, c::Matrix{T}, x::AbstractVector{TX}) where {T<:Real,TX} =
-        new{N,T,TX}(a, b, c, x)
+    x::VX
+    PP(N::Int, T, TX, n::Int) = new{N,T,TX,Vector{T},Vector{TX}}(zeros(T, n), zeros(T, n), zeros(T, (n- 1, N - 1)), zeros(TX, n))
+    PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::Matrix{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
+        new{N,T,TX,typeof(a),typeof(x)}(a, b, c, x)
 end
 
 
@@ -40,13 +40,13 @@ Base.size(p::PP) = Base.size(p.x)
 Base.broadcastable(p::PP) = Ref(p)
 
 
-function makeLinearPP(x::AbstractVector{TX}, y::AbstractVector{T}) where {T,TX}
+function makeLinearPP(x::AbstractArray{TX}, y::AbstractArray{T}) where {T,TX}
     pp = PP(2, T, TX, length(y))
     computeLinearPP(pp, x, y)
     return pp
 end
 
-function computeLinearPP(pp::PP{N,T,TX}, x::AbstractVector{TX}, y::AbstractVector{T}) where {N,T,TX}
+function computeLinearPP(pp::PP{N,T,TX}, x::AbstractArray{TX}, y::AbstractArray{T}) where {N,T,TX}
     n = length(x)
     if n <= 1
         pp.a[1:end] = y
@@ -77,13 +77,13 @@ function computeLinearPP(pp::PP{N,T,TX}, x::AbstractVector{TX}, y::AbstractVecto
     end
 end
 
-CubicSplineNatural(x::AbstractVector{TX}, y::AbstractVector{T}) where {TX,T} = makeCubicPP(x,y,SECOND_DERIVATIVE,zero(T),SECOND_DERIVATIVE,zero(T),C2()) 
+CubicSplineNatural(x::AbstractArray{TX}, y::AbstractArray{T}) where {TX,T} = makeCubicPP(x,y,SECOND_DERIVATIVE,zero(T),SECOND_DERIVATIVE,zero(T),C2()) 
 
-CubicSplineNotAKnot(x::AbstractVector{TX}, y::AbstractVector{T})  where {TX,T} = makeCubicPP(x,y,NOT_A_KNOT,zero(T),NOT_A_KNOT,zero(T),C2())
+CubicSplineNotAKnot(x::AbstractArray{TX}, y::AbstractArray{T})  where {TX,T} = makeCubicPP(x,y,NOT_A_KNOT,zero(T),NOT_A_KNOT,zero(T),C2())
 
 function makeCubicPP(
-    x::AbstractVector{TX},
-    y::AbstractVector{T},
+    x::AbstractArray{TX},
+    y::AbstractArray{T},
     leftBoundary::PPBoundary,
     leftValue::T,
     rightBoundary::PPBoundary,
@@ -223,7 +223,7 @@ function computePP(
 end
 
 "evaluate a sorted array `za` with piecewise cubic interpolation, putting the results in `v``. `za`` must be sorted in ascending order"
-function evaluateSorted!(self::Union{PP{3,T,TX},PP{2,T,TX}}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {T,TX,TZ}
+function evaluateSorted!(self::Union{PP{3,T,TX},PP{2,T,TX}}, v::AbstractVector{T}, za::AbstractVector{TZ}) where {T,TX,TZ}
     ppIndex = 1
     for j = 1:length(za)
         z = za[j]
@@ -526,7 +526,8 @@ function fillDerivativeEstimate(limiter::Fukasawa, dx::AbstractArray{TX}, S::Abs
     for i = 2:n
         li = sqrt(dx[i]^2+(S[i]*dx[i])^2)        
         lim = sqrt(dx[i-1]^2+(S[i-1]*dx[i-1])^2)        
-        b[i] = -(dx[i]/li - dx[i-1]/lim) / (S[i]*dx[i]/li - S[i-1]*dx[i-1]/lim)        
+        denom = (S[i]*dx[i]/li - S[i-1]*dx[i-1]/lim)              
+        b[i] = denom == zero(T) ? S[i] : -(dx[i]/li - dx[i-1]/lim) / denom
     end
 end
 

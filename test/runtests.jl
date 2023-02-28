@@ -18,6 +18,20 @@ using ForwardDiff
             previousVal = zval
         end
     end
+
+    #Fukasawa is not monotonic.
+    # nSample = 10
+    # spline = makeCubicPP(x, f, PPInterpolation.FIRST_DERIVATIVE,0.0, PPInterpolation.FIRST_DERIVATIVE,0.0, Fukasawa())
+    # previousVal = spline(x[1])
+    # for i = 1:nSample
+    #     ti = x[1] + (x[end] - x[1]) * (i) / (nSample)
+    #     zval = spline(ti)
+    #     if i > 2
+    #         @test zval >= previousVal
+    #     end
+    #     previousVal = zval
+    # end
+
     #     varieties = [ C2Hyman89(), C2MP(), HuynRational(), VanLeer(), FritschButland(), Brodlie(), VanAlbada() ]^C
     #  p = plot()
     #  for v in varieties
@@ -88,7 +102,7 @@ using QuadGK
         z = collect(range(x[1],stop=x[end],length=500));
         yNew = Array{Float64}(undef,length(x));
         @time yNew[1:end]= spline(z)
-        @test isapprox(y[10],spline(x[10]),atol=1e-15)
+        @test isapprox(y[10],spline(x[10]),atol=1e-15)        
         yNewCopy = Array{Float64}(undef,length(x));
         @time for i=1:length(z) yNew[i] = spline(z[i]) end
         @time evaluateSorted!(spline,yNewCopy, z)
@@ -109,4 +123,17 @@ using QuadGK
             quadval = quadgk(spline, lower, upper)
             @test isapprox(val, quadval[1], atol=5e-8)
         end
+end
+
+@testset "Quintic" begin
+    Random.seed!(1)
+    x = sort(rand(500));
+    y = rand(500);
+    yp = rand(500);
+    spline = makeHermiteQuinticPP(x, y, yp)
+    z = collect(range(x[1],stop=x[end],length=500));
+    yNew = Array{Float64}(undef,length(x));
+    @time yNew[1:end]= spline(z)
+    @test isapprox(y[10],spline(x[10]),atol=1e-15)        
+    @test isapprox(yp[10],evaluateDerivative(spline,x[10]),atol=1e-15)        
 end

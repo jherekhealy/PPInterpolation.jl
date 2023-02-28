@@ -4,10 +4,10 @@ export makeHermiteQuinticPP
 
 function computeDEF(
     c::AbstractMatrix{T},
-    f1::Vector{T},
-    f2::Vector{T},
-    S::Vector{T},
-    dx::Vector{T}
+    f1::AbstractVector{T},
+    f2::AbstractVector{T},
+    S::AbstractVector{T},
+    dx::AbstractVector{T}
 ) where {T}
     for i = 1:length(f1)-1
         c[i, 1] = f2[i] / 2
@@ -18,7 +18,7 @@ function computeDEF(
 end
 
 
-function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}, y2left::T, y2right::T) where {T,TX}
+function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, y2left::T, y2right::T) where {T,TX}
     dx = @. x[2:end] - x[1:end-1]
     s = @. (y[2:end] - y[1:end-1]) / dx
     n = length(y)
@@ -47,12 +47,12 @@ function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}, y2left
     return PP(5, copy(y), copy(y1), c, copy(x))
 end
 
-function makeHermiteQuinticPP(x::Vector{TX}, y::Vector{T}, y1::Vector{T}) where {T,TX}
+function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}) where {T,TX}
     dx = @. x[2:end] - x[1:end-1]
     s = @. (y[2:end] - y[1:end-1]) / dx
     n = length(y)
     rhs = zeros(T, n)
-    d = zeros(TX.n)
+    d = zeros(TX, n)
     dl = zeros(TX, n - 1)
     du = zeros(TX, n - 1)
     rhs[1] = zero(T)
