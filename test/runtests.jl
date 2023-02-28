@@ -79,6 +79,7 @@ end
 end
 
 using Random
+using QuadGK
 @testset "FiveHundred" begin
         Random.seed!(1)
         x = sort(rand(500));
@@ -100,4 +101,12 @@ using Random
         val = evaluateDerivative(q, 0.5)
         autoval = ForwardDiff.derivative(q, 0.5)       
         @test isapprox(val, autoval, atol = 1e-12)
+        # integration tests
+        lower_bounds = rand(100) * (x[end] - x[1]) .+ x[1]
+        upper_bounds = rand(100) * (x[end] - x[1]) .+ x[1]
+        for (lower, upper) in zip(lower_bounds, upper_bounds)
+            val = evaluateIntegral(spline, lower, upper)
+            quadval = quadgk(spline, lower, upper)
+            @test isapprox(val, quadval[1], atol=5e-8)
+        end
 end
