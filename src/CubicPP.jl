@@ -1,6 +1,6 @@
 using LinearAlgebra
 
-export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie
+export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie,Hermite,Fukasawa
 export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluatePiece, evaluateIntegral
 
 abstract type DerivativeKind end
@@ -13,7 +13,10 @@ struct C2MP2 <: DerivativeKind end
 
 
 abstract type LimiterDerivative <: DerivativeKind end
-struct Hermite <: DerivativeKind end
+struct Hermite{T} <: LimiterDerivative
+    b::Vector{T} #derivative values
+end
+struct Fukasawa <: LimiterDerivative end
 struct Bessel <: LimiterDerivative end
 struct HuynRational <: LimiterDerivative end
 struct VanLeer <: LimiterDerivative end
@@ -220,7 +223,7 @@ function computePP(
 end
 
 "evaluate a sorted array `za` with piecewise cubic interpolation, putting the results in `v``. `za`` must be sorted in ascending order"
-function evaluateSorted!(self::PP{N,T,TX}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {N,T,TX,TZ}
+function evaluateSorted!(self::Union{PP{3,T,TX},PP{2,T,TX}}, v::AbstractArray{T}, za::AbstractArray{TZ}) where {T,TX,TZ}
     ppIndex = 1
     for j = 1:length(za)
         z = za[j]
@@ -233,7 +236,7 @@ function evaluateSorted!(self::PP{N,T,TX}, v::AbstractArray{T}, za::AbstractArra
     end
 end
 
-function evaluate(self::PP{N,T,TX}, z::TZ) where {N,T,TX,TZ}
+function evaluate(self::Union{PP{3,T,TX},PP{2,T,TX}}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
         return self.b[1] * (z - self.x[1]) + self.a[1]
     elseif z >= self.x[end]
@@ -517,6 +520,17 @@ function fillDerivativeEstimate(limiter::LimiterDerivative, dx::AbstractArray{TX
     end
 end
 
+function fillDerivativeEstimate(limiter::Fukasawa, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
+    # @. b[2:end-1] = (dx[1:end-1] * S[2:end] + dx[2:end] * S[1:end-1]) / (dx[1:end-1] + dx[2:end])
+    n = length(S)
+    for i = 2:n
+        li = sqrt(dx[i]^2+(S[i]*dx[i])^2)        
+        lim = sqrt(dx[i-1]^2+(S[i-1]*dx[i-1])^2)        
+        b[i] = -(dx[i]/li - dx[i-1]/lim) / (S[i]*dx[i]/li - S[i-1]*dx[i-1]/lim)        
+    end
+end
+
+
 function fillDerivativeEstimate(limiter::Bessel, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
     # @. b[2:end-1] = (dx[1:end-1] * S[2:end] + dx[2:end] * S[1:end-1]) / (dx[1:end-1] + dx[2:end])
     n = length(S)
@@ -525,6 +539,13 @@ function fillDerivativeEstimate(limiter::Bessel, dx::AbstractArray{TX}, S::Abstr
     end
 end
 
+function fillDerivativeEstimate(limiter::Hermite{T}, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
+    # @. b[2:end-1] = (dx[1:end-1] * S[2:end] + dx[2:end] * S[1:end-1]) / (dx[1:end-1] + dx[2:end])
+    n = length(S)
+    for i = 2:n
+        b[i] = limiter.b[i]
+    end
+end
 
 function fillDerivativeEstimate(limiter::Brodlie, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
     n = length(S)
