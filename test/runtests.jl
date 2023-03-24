@@ -19,9 +19,9 @@ using ForwardDiff
         end
     end
 
-    #Fukasawa is not monotonic.
+   
     # nSample = 10
-    # spline = makeCubicPP(x, f, PPInterpolation.FIRST_DERIVATIVE,0.0, PPInterpolation.FIRST_DERIVATIVE,0.0, Fukasawa())
+    # spline = makeCubicPP(x, f, PPInterpolation.FIRST_DERIVATIVE,0.0, PPInterpolation.FIRST_DERIVATIVE,0.0, PPInterpolation.Fukasawa())
     # previousVal = spline(x[1])
     # for i = 1:nSample
     #     ti = x[1] + (x[end] - x[1]) * (i) / (nSample)
@@ -42,7 +42,7 @@ using ForwardDiff
 
 end
 
-@testset "FrtschCarlson" begin
+@testset "FritschCarlson" begin
     x = [7.99, 8.09, 8.19, 8.7, 9.2, 10.0, 12.0, 15.0, 20.0]
     f = [0.0, 2.76429e-5, 4.37498e-2, 0.169183, 0.469428, 0.943740, 0.998636, 0.999919, 0.999994]
 
@@ -93,6 +93,44 @@ end
 end
 
 using Random
+struct ReflectingAngle <: PPInterpolation.LimiterDerivative end
+
+function PPInterpolation.fillDerivativeEstimate(limiter::ReflectingAngle, dx::AbstractArray{TX}, S::AbstractArray{T}, b::AbstractArray{T}) where {T,TX}
+    # @. b[2:end-1] = (dx[1:end-1] * S[2:end] + dx[2:end] * S[1:end-1]) / (dx[1:end-1] + dx[2:end])
+    n = length(S)
+    for i = 2:n
+        tan2a = (S[i]+S[i-1])/(1-S[i]*S[i-1])
+        sqrtDisc = sqrt(1+tan2a^2)
+        tana = (-1-sqrtDisc)/(tan2a)
+        tanb = (-1+sqrtDisc)/(tan2a)
+        b[i] = if tan2a == zero(T) 
+             zero(T)
+        elseif sign(tana)==sign(S[i-1])
+            tana
+        else 
+            tanb
+        end
+    end
+end
+
+@testset "FiveHundredAngle" begin
+    #  Random.seed!(1)
+    #  x = sort(rand(500));
+    #  y = rand(500);
+    x = [3.0, 5.0, 6.0, 8.0, 9.0, 11.0, 12.0, 14.0, 15.0]
+    y = [10.0, 10.0, 10.0, 10.0, 10.5, 15.0, 50.0, 60.0, 85.0]
+    spline = makeCubicPP(x, y, PPInterpolation.FIRST_DERIVATIVE, 0.0, PPInterpolation.FIRST_DERIVATIVE, 0.0, Fukasawa())
+    z = collect(range(x[1],stop=x[end],length=500));
+    yNew = Array{Float64}(undef,length(z));
+    @time yNew[1:end]= spline(z)
+    @test isapprox(y[5],spline(x[5]),atol=1e-15)        
+    splineb = makeCubicPP(x, y, PPInterpolation.FIRST_DERIVATIVE, 0.0, PPInterpolation.FIRST_DERIVATIVE, 0.0, ReflectingAngle())
+    ybNew = Array{Float64}(undef,length(z));
+    @time ybNew[1:end]= splineb(z)
+    for i=1:length(yNew)
+        @test isapprox(yNew[i],ybNew[i],atol=1e-8)    
+    end
+end
 using QuadGK
 @testset "FiveHundred" begin
         Random.seed!(1)
@@ -123,6 +161,7 @@ using QuadGK
             quadval = quadgk(spline, lower, upper)
             @test isapprox(val, quadval[1], atol=5e-8)
         end
+       
 end
 
 @testset "Quintic" begin

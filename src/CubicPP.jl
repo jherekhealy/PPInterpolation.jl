@@ -13,16 +13,22 @@ struct C2MP2 <: DerivativeKind end
 
 
 abstract type LimiterDerivative <: DerivativeKind end
+"The derivative at each knot is passed as parameter."
 struct Hermite{T} <: LimiterDerivative
     b::Vector{T} #derivative values
 end
+"The derivative at each knot is such that the incidence angle and the reflecting angle are equal as in  Fukasawa et al (2011) 'Model-free implied volatility: from surface to index'."
 struct Fukasawa <: LimiterDerivative end
+"The derivative at each knot is the one of the 3-points parabola."
 struct Bessel <: LimiterDerivative end
+"The derivative at each knot is based on the rational limiter of Huyn. In particular it preserves monotonicity."
 struct HuynRational <: LimiterDerivative end
 struct VanLeer <: LimiterDerivative end
 struct VanAlbada <: LimiterDerivative end
-struct FritschButland <: LimiterDerivative end #Fritsch Butland 1980
-struct Brodlie <: LimiterDerivative end #Fritch Butland 1984
+"Fritsch Butland 1980"
+struct FritschButland <: LimiterDerivative end 
+"Fritch Butland 1984"
+struct Brodlie <: LimiterDerivative end
 
 struct PP{N,T,TX,VT<:AbstractArray{T},VX<:AbstractArray{TX}}
     a::VT
@@ -156,8 +162,8 @@ function computePP(
         alpha[n] = S[n-1]
     elseif rightBoundary == SECOND_DERIVATIVE
         middle[n] = 2 * one(TX)
-        lower[n-1] = zero(TX)
-        alpha[n] = 3 * S[n-1] - rightValue * dx[n-1] / 2
+        lower[n-1] = one(TX)
+        alpha[n] = 3 * S[n-1] + rightValue * dx[n-1] / 2
     end
     tri = LinearAlgebra.Tridiagonal(lower, middle, upper)
     fPrime = tri \ alpha
