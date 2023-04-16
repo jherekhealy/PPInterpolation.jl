@@ -1,8 +1,8 @@
 using LinearAlgebra
 
 export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie,Hermite,Fukasawa
-export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluatePiece, evaluateIntegral
-
+export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluateIntegral
+export evaluatePiece, evaluateDerivativePiece
 abstract type DerivativeKind end
 struct C2 <: DerivativeKind end
 struct C2Hyman89 <: DerivativeKind end
@@ -242,7 +242,7 @@ function evaluateSorted!(self::Union{PP{3,T,TX},PP{2,T,TX}}, v::AbstractVector{T
     end
 end
 
-function evaluate(self::Union{PP{3,T,TX},PP{2,T,TX}}, z::TZ) where {T,TX,TZ}
+function evaluate(self::Union{PP{3,T,TX},PP{2,T,TX},PP{1,T,TX}}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
         return self.b[1] * (z - self.x[1]) + self.a[1]
     elseif z >= self.x[end]
@@ -271,7 +271,7 @@ end
     return self.a[i] + h * self.b[i]
 end
 
-function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
+function evaluateDerivative(self::Union{PP{3,T,TX},PP{2,T,TX},PP{1,T,TX}}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
         return self.b[1]
     elseif z >= self.x[end]
@@ -282,8 +282,21 @@ function evaluateDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
     if z != self.x[i] && i > 1
         i -= 1
     end
+    return evaluateDerivativePiece(self,i,z)
+end
+
+@inline function evaluateDerivativePiece(self::PP{3,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
     h = z - self.x[i]
-    return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2]))
+    return  self.b[i] + h * (2*self.c[i, 1] + h * (3*self.c[i, 2]))
+end
+
+@inline function evaluateDerivativePiece(self::PP{2,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    h = z - self.x[i]
+    return self.b[i] + 2h * self.c[i, 1]
+end
+
+@inline function evaluateDerivativePiece(self::PP{1,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    return self.b[i]
 end
 
 function evaluateIntegral(self::PP{N,T,TX}, z1::TZ, z2::TZ) where {N,T,TX,TZ}
@@ -573,3 +586,58 @@ end
      h = z - self.x[i]
      return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
  end
+
+#Integral from z to Infty. i is index of z in pp representation.
+#Assumes linear extrapolation for now.
+function evaluateHermiteIntegralBounded(pp::PPInterpolation.PP{2,T,U}, i::Int, z::TZ)::T where {T,U,TZ}
+    n = length(pp.x)
+    if i > length(pp.x)
+        i -= 1
+    end
+    integral = zero(z)
+    l = z
+    pdfL = normpdf(l)
+    cdfL = normcdf(l)    
+    if z <= pp.x[1]
+        #should be up to x[1]
+        r = pp.x[1]
+        pdfR = normpdf(r)
+        cdfR = normcdf(r)
+        slope = pp.b[1]
+        moment = (pp.a[1]-pp.x[1]*slope)*(cdfR-cdfL) - slope*(pdfR-pdfL)
+        integral += moment
+        pdfL = pdfR
+        cdfL = cdfR
+        i = 0
+    elseif z < pp.x[n]
+        r = pp.x[i+1]
+        pdfR = normpdf(r)
+        cdfR = normcdf(r)
+        moment = (pp.a[i] - pp.x[i]*(pp.b[i]) + pp.c[i,1]*(pp.x[i]^2+1)) * (cdfR-cdfL)
+		moment += pdfL*(pp.b[i]-pp.c[i,1]*(2*pp.x[i]-l)) - pdfR*(pp.b[i]-pp.c[i,1]*(2*pp.x[i]-r))		
+        integral += moment
+        pdfL = pdfR
+        cdfL = cdfR
+    end
+    for j = i+1:n-1
+        l = pp.x[j]
+        r = pp.x[j+1]
+        pdfR = normpdf(r)
+        cdfR = normcdf(r)
+        moment = (pp.a[j] - pp.x[j]*(pp.b[j]) + pp.c[j,1]*(pp.x[j]^2+1)) * (cdfR-cdfL)
+		moment += pdfL*(pp.b[j]-pp.c[j,1]*(2*pp.x[j]-l)) - pdfR*(pp.b[j]-pp.c[j,1]*(2*pp.x[j]-r))		
+        integral += moment
+        pdfL = pdfR
+        cdfL = cdfR
+    end
+    l = max(pp.x[n], z)
+    slope = PPInterpolation.evaluateDerivativePiece(pp,n-1,pp.x[n])
+    yn = PPInterpolation.evaluatePiece(pp,n-1,pp.x[n])
+    moment = (yn-slope*pp.x[n])*(1-cdfL) + slope*pdfL
+    integral += moment
+    if isnan(integral) || isinf(integral)
+        println(z, " ", ckIndex, " inf integral ", pp)
+        throw(DomainError("infinite integral"))
+    end
+    return integral
+end
