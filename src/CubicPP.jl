@@ -30,14 +30,14 @@ struct FritschButland <: LimiterDerivative end
 "Fritch Butland 1984"
 struct Brodlie <: LimiterDerivative end
 
-struct PP{N,T,TX,VT<:AbstractArray{T},VX<:AbstractArray{TX}}
+struct PP{N,T,TX,VT<:AbstractArray{T}, MT<:AbstractMatrix{T},VX<:AbstractArray{TX}}
     a::VT
     b::VT
-    c::Matrix{T} #c[:,i] = coeff of x^{i+1}
+    c::MT #c[:,i] = coeff of x^{i+1}
     x::VX
-    PP(N::Int, T, TX, n::Int) = new{N,T,TX,Vector{T},Vector{TX}}(zeros(T, n), zeros(T, n), zeros(T, (n- 1, N - 1)), zeros(TX, n))
-    PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::Matrix{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
-        new{N,T,TX,typeof(a),typeof(x)}(a, b, c, x)
+    PP(N::Int, T, TX, n::Int) = new{N,T,TX,Vector{T},Matrix{T},Vector{TX}}(zeros(T, n), zeros(T, n), zeros(T, (n- 1, N - 1)), zeros(TX, n))
+    PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::AbstractMatrix{T}, x::AbstractArray{TX}) where {T<:Real,TX} =
+        new{N,T,TX,typeof(a),typeof(c),typeof(x)}(a, b, c, x)
 end
 
 
