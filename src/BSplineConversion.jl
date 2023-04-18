@@ -72,7 +72,7 @@ function Base.convert(::Type{PPInterpolation.PP{3,T,TX}}, spl::BSplines.Spline) 
     x = breakA
     a = @view(coef[1, :])
     b = @view(coef[2, :])
-    c = Matrix(coef[3:4, 1:l]')
+    c = coef[3:4, 1:l]'
     dx = (x[l+1] - x[l])
     a[l+1] = a[l] + dx * (b[l] + dx * (c[l, 1] + dx * (c[l, 2])))
     b[l+1] = b[l] + dx * (2 * c[l, 1] + dx * 3 * c[l, 2])
