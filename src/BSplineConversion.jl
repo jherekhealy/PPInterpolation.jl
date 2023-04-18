@@ -7,7 +7,7 @@ function Base.convert(::Type{PP{2,T,TX}}, spl::BSplines.Spline) where {T,TX}
     a = zeros(T, n)
     b = zeros(T, n)
     c = zeros(T, (n - 1, 1))
-    x = spl.basis.breakpoints
+    x = Vector(spl.basis.breakpoints)
     α = spl.coeffs
     for i = 1:n
         a[i] = (t[i+2] - t[i+1]) / (t[i+3] - t[i+1]) * (α[i+1] - α[i]) + α[i]
