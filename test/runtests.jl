@@ -176,3 +176,5 @@ end
     @test isapprox(y[10],spline(x[10]),atol=1e-15)        
     @test isapprox(yp[10],evaluateDerivative(spline,x[10]),atol=1e-15)        
 end
+
+include("conversion_tests.jl")
