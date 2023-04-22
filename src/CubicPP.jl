@@ -350,7 +350,7 @@ function evaluateIntegral(self::PP{N,T,TX}, z1::TZ, z2::TZ) where {N,T,TX,TZ}
     return integral * sign
 end
 
-function evaluateSecondDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
+function evaluateSecondDerivative(self::PP{N,T,TX}, z::TZ) where {N,T,TX,TZ}
     if z <= self.x[1]
         return self.b[1]
     elseif z >= self.x[end]
@@ -361,8 +361,37 @@ function evaluateSecondDerivative(self::PP{3,T,TX}, z::TZ) where {T,TX,TZ}
     if z != self.x[i] && i > 1
         i -= 1
     end
+    return evaluateSecondDerivativePiece(self, i, z)
+end
+
+@inline function evaluateSecondDerivativePiece(self::PP{3,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
     h = z - self.x[i]
     return 2 * self.c[i, 1] + h * (3 * 2 * self.c[i, 2])
+end
+
+@inline function evaluateSecondDerivativePiece(self::PP{2,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    return 2 * self.c[i, 1] 
+end
+
+@inline function evaluateSecondDerivativePiece(self::PP{1,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    return zero(T)
+end
+
+function evaluateThirdDerivative(self::PP{N,T,TX}, z::TZ) where {N,T,TX,TZ}
+    if z <= self.x[1]
+        return zero(T)
+    elseif z >= self.x[end]
+        return zero(T)
+    end
+    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
+    if z != self.x[i] && i > 1
+        i -= 1
+    end
+    return evaluateThirdDerivativePiece(self, i, z)
+end
+
+@inline function evaluateThirdDerivativePiece(self::PP{3,T,TX}, i::Int, z::TZ) where {T,TX,TZ}
+    return 3 * 2 * self.c[i, 2]
 end
 
 (spl::PP{N,T,TX})(x::TZ) where {N,T,TX,TZ} = evaluate(spl, x)
