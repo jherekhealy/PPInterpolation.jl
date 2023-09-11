@@ -10,7 +10,19 @@ struct C2HymanNonNegative <: DerivativeKind end
 struct C2MP <: DerivativeKind end
 struct C2MP2 <: DerivativeKind end
 @enum PPBoundary NOT_A_KNOT = 0 FIRST_DERIVATIVE = 1 SECOND_DERIVATIVE = 2 FIRST_DIFFERENCE = 3
-
+abstract type PPExtrapolation end
+struct ZeroExtrapolation <: PPExtrapolation
+end
+struct ConstantAutoExtrapolation <: PPExtrapolation
+end
+struct LinearAutoExtrapolation <: PPExtrapolation
+end 
+struct ConstantExtrapolation <: PPExtrapolation
+    value
+end
+struct LinearExtrapolation <: PPExtrapolation
+   slope
+end
 
 abstract type LimiterDerivative <: DerivativeKind end
 "The derivative at each knot is passed as parameter."
@@ -665,6 +677,64 @@ function evaluateHermiteIntegralBounded(pp::PPInterpolation.PP{2,T,U}, i::Int, z
     yn = PPInterpolation.evaluatePiece(pp,n-1,pp.x[n])
     moment = (yn-slope*pp.x[n])*(1-cdfL) + slope*pdfL
     integral += moment
+    if isnan(integral) || isinf(integral)
+        println(z, " ", ckIndex, " inf integral ", pp)
+        throw(DomainError("infinite integral"))
+    end
+    return integral
+end
+
+function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, ::ZeroExtrapolation) where {N,T,U}
+    return zero(cdfL)
+end
+function hermiteIntegralLeftExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, ::ZeroExtrapolation) where {N,T,U}
+    return zero(cdfL)
+end
+
+function hermiteIntegralLeftExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, leftExtrapolation::LinearAutoExtrapolation) where {N,T,U}
+    l = pp.x[1]
+    slope = pp.b[1] 
+    (pp.a[1]-pp.x[1]*slope)*cdfL - slope*pdfL
+end
+
+function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, rightExtrapolation::LinearAutoExtrapolation) where {N,T,U}
+    n = length(pp.x)
+    l =pp.x[n]
+    slope = evaluateDerivativePiece(pp,n-1,pp.x[n])
+    yn = evaluatePiece(pp,n-1,pp.x[n])
+    (yn-slope*pp.x[n])*(1-cdfL) + slope*pdfL
+end
+
+function hermiteIntegralLefttExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, ::ConstantAutoExtrapolation) where {N,T,U}
+    pp.a[1]*cdfL 
+end
+
+function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, rightExtrapolation::ConstantAutoExtrapolation) where {N,T,U}
+    n = length(pp.x)
+    l =pp.x[n]
+    yn = evaluatePiece(pp,n-1,pp.x[n])
+    yn*(1-cdfL) 
+end
+
+#Integral from -Infty to Infty.
+function evaluateHermiteIntegral(pp::PPInterpolation.PP{3,T,U};leftExtrapolation=ConstantAutoExtrapolation(), rightExtrapolation=ConstantAutoExtrapolation()) where {T,U}
+    n = length(pp.x)
+    l = pp.x[1]
+    pdfL = normpdf(l)
+    cdfL = normcdf(l)    
+    integral = hermiteIntegralLeftExtrapolation(pp, pdfL, cdfL, leftExtrapolation)
+    for i = 1:n-1
+        l = pp.x[i]
+        r = pp.x[i+1]
+        pdfR = normpdf(r)
+        cdfR = normcdf(r)
+        moment = (pp.a[i] - pp.x[i]*(pp.b[i]+pp.c[i,2]*(pp.x[i]^2+3)) + pp.c[i,1]*(pp.x[i]^2+1)) * (cdfR-cdfL)
+		moment += pdfL*(pp.b[i]-pp.c[i,1]*(2*pp.x[i]-l)+pp.c[i,2]*(3*pp.x[i]^2-3*l*pp.x[i]+l^2+2)) - pdfR*(pp.b[i]-pp.c[i,1]*(2*pp.x[i]-r)+pp.c[i,2]*(3*pp.x[i]^2-3*pp.x[i]*r+r^2+2))		
+        integral += moment
+        pdfL = pdfR
+        cdfL = cdfR
+    end
+    integral += hermiteIntegralRightExtrapolation(pp, pdfL, cdfL, rightExtrapolation)
     if isnan(integral) || isinf(integral)
         println(z, " ", ckIndex, " inf integral ", pp)
         throw(DomainError("infinite integral"))

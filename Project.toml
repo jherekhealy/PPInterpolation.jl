@@ -1,7 +1,7 @@
 name = "PPInterpolation"
 uuid = "0bf8acf5-7f56-4370-abee-dfc0c3b7d49e"
 authors = ["Jherek Healy <jherekhealy@protonmail.com>"]
-version = "0.7.1"
+version = "0.7.2"
 
 [deps]
 BSplines = "488c2830-172b-11e9-1591-253b8a7df96d"
