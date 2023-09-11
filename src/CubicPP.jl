@@ -1,5 +1,5 @@
 using LinearAlgebra
-
+import SpecialFunctions: erfc
 export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie,Hermite,Fukasawa
 export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluateIntegral
 export evaluatePiece, evaluateDerivativePiece
@@ -628,6 +628,9 @@ end
      h = z - self.x[i]
      return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
  end
+
+normpdf(x)=exp(-x^2 / 2) / sqrt(2π)
+normcdf(x)=erfc(-z /sqrt(2))/2
 
 #Integral from z to Infty. i is index of z in pp representation.
 #Assumes linear extrapolation for now.
