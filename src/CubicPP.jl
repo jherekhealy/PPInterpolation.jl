@@ -630,7 +630,7 @@ end
  end
 
 normpdf(x)=exp(-x^2 / 2) / sqrt(2π)
-normcdf(x)=erfc(-z /sqrt(2))/2
+normcdf(x)=erfc(-x /sqrt(2))/2
 
 #Integral from z to Infty. i is index of z in pp representation.
 #Assumes linear extrapolation for now.
@@ -687,10 +687,10 @@ function evaluateHermiteIntegralBounded(pp::PPInterpolation.PP{2,T,U}, i::Int, z
     return integral
 end
 
-function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, ::ZeroExtrapolation) where {N,T,U}
+function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, rightExtrapolation::ZeroExtrapolation) where {N,T,U}
     return zero(cdfL)
 end
-function hermiteIntegralLeftExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, ::ZeroExtrapolation) where {N,T,U}
+function hermiteIntegralLeftExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, leftExtrapolation::ZeroExtrapolation) where {N,T,U}
     return zero(cdfL)
 end
 
@@ -708,7 +708,7 @@ function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, 
     (yn-slope*pp.x[n])*(1-cdfL) + slope*pdfL
 end
 
-function hermiteIntegralLefttExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, ::ConstantAutoExtrapolation) where {N,T,U}
+function hermiteIntegralLeftExtrapolation(pp::PPInterpolation.PP{N,T,U}, pdfL, cdfL, leftExtrapolation::ConstantAutoExtrapolation) where {N,T,U}
     pp.a[1]*cdfL 
 end
 
