@@ -16,5 +16,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [compat]
 BenchmarkTools = "1"
 ForwardDiff = "0.10"
+BSplines="0.3"
+SpecialFunctions = "2"
 QuadGK = "2"
 julia = "1"
