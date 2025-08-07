@@ -1,4 +1,4 @@
-export SchumakerDerivative, LamDerivative, makeSchumakerQuadraticPP
+export SchumakerDerivative, LamDerivative, SchumakerQuadraticPP
 
 abstract type FirstDerivativeVariant end
 struct SchumakerDerivative <: FirstDerivativeVariant end
@@ -8,23 +8,42 @@ end
 LamDerivative{T}() where {T} = LamDerivative(one(T) / 2)
 
 
+"""
+	SchumakerQuadraticPP(t::AbstractArray{TX}, z::AbstractArray{T},	variant::FirstDerivativeVariant=SchumakerDerivative(); epsilon = sqrt(eps(T))
 
-function makeSchumakerQuadraticPP(
+This routine implements monotonicity and convexity preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation".
+
+  # Input parameter:
+   * `t`        Vector of abscissa
+   * `z`        Vector of ordinates of same size as `t`
+   * `variant`  Specify how do compute the first derivatives at the initial knots `t`. Defaults to SchumakerDerivative(), may be overridden to use LamDerivative(0.5) guaranteeing a local interpolation as per Maria H. Lam (1990) "Monotone and Convex Spline Interpolation".
+ 
+ # Output:
+   * a PP struct with N=2 (a quadratic piecewise polynomial). 
+
+Example:
+
+  	t = Float64.([1, 2, 3, 4, 5])
+	z = Float64.([1, 2, 3, 2, 1])
+	interp = SchumakerQuadraticPP(t, z)
+	interp(2.5) 
+"""
+function SchumakerQuadraticPP(
 	t::AbstractArray{TX},
 	z::AbstractArray{T},
-	variant::FirstDerivativeVariant;
- epsilon = sqrt(eps(T))
+	variant::FirstDerivativeVariant = SchumakerDerivative();
+	epsilon = sqrt(eps(T)),
 ) where {T, TX}
 	dt = t[2:end] - t[1:end-1]
 	dz = z[2:end] - z[1:end-1]
 	d = dz ./ dt
-	s = computeFirstDerivatives(variant, t, z, epsilon=epsilon)
+	s = computeFirstDerivatives(variant, t, z, epsilon = epsilon)
 	j = 0
 	x = Vector{TX}(undef, 0)
 	a = Vector{T}(undef, 0)
 	b = Vector{T}(undef, 0)
 	c = Vector{T}(undef, 0)
-    n = length(t)
+	n = length(t)
 	for i ∈ 1:n-1
 		if abs(s[i] + s[i+1] - 2 * d[i]) <= epsilon * abs(d[i])
 			j += 1
@@ -35,7 +54,7 @@ function makeSchumakerQuadraticPP(
 		else
 			aa = s[i] - d[i]
 			bb = s[i+1] - d[i]
-			ei = 	if aa * bb >= zero(T)
+			ei = if aa * bb >= zero(T)
 				(t[i+1] + t[i]) / 2
 			else
 				if abs(aa) > abs(bb)
@@ -69,7 +88,7 @@ function makeSchumakerQuadraticPP(
 	end
 	x = push!(x, t[end])
 	a = push!(a, z[end])
-	pp = PP(2, a, b, reshape(c,length(c),1), x)
+	pp = PP(2, a, b, reshape(c, length(c), 1), x)
 	return pp
 end
 

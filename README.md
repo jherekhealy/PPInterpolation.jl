@@ -21,6 +21,8 @@ with the following boundary conditions:
 Also supported are C3 Hermite quintic spline with  given first derivatives at all knots, plus second derivatives at end-points. 
 Cubic and quintic Lavery splines are available in the package [Lavery.jl](https://github.com/jherekhealy/LaverySpline.jl).
 
+Since version 0.7.4, the monotonicity and convexity preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation" has been added. It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local interpolation.
+
 
 ## Why another Julia interpolation package?
 At the time this package was created (and still today), there are surprisingly few interpolation packages for Julia which support cubic splines. And the existing ones do not provide any control over the boundary conditions. The existing packages are not focused on cubic splines but tend to be more general.
@@ -47,6 +49,7 @@ Below is an example of performance using `x = sort(rand(500))` and `y=rand(500)`
 
 
 ## Examples
+### Cubic spline interpolation
 Interpolate f(x) at non-equistant knots with a cubic spline keeping continuity of class C2 (first and second derivatives continuous):
 
 ```julia
@@ -69,7 +72,13 @@ Various monotonicity preserving scheme are available by changing the last parame
 * `FritschButland()`  : the first derivatives are estimated through a weighted harmonic mean which guarantees monotonicity.
 * `Brodlie()` : similar to FritchButland but takes into account the non-uniformity of the knots better, see Fritsch and Butland "A method for constructing local monotone piecewise cubic interpolants"  (1984).
 
+The spline may be evaluated beyond the original range for `x`. It then makes use of an optional extrapolation parameter, which defaults to linear interpolation. For a constant extrapolation, use:
+```
+evaluate(spline, 4.0, extrapolation=ConstantAutoInterpolation())
+```
+To evaluate using the first/last polynomial piece, use `evaluate(spline, 4.0, extrapolation=PieceAutoInterpolation())`
 
+### Quadratic Lagrange interpolation
 Quadratic Lagrange interpolation has fast evaluation API with mutable variable:
 
 ```julia
@@ -78,6 +87,21 @@ using PPInterpolation
 x = [3.0, 5.0, 6.0, 8.0, 9.0, 11.0, 12.0, 14.0, 15.0]
 f = [10.0, 10.0, 10.0, 10.0, 10.5, 15.0, 50.0, 60.0, 85.0]
 spline = QuadraticLagrangePP(x, f)
+spline(4.0)
+y = Array{Float64}(undef, 100) #the output
+z = collect(range(3.0,stop=15.0,length=100)) #this is sorted input
+evaluateSorted!(spline,y,z)
+```
+
+### Schumaker quadratic spline interpolation
+`SchumakerQuadraticPP` implements the monotonicity and convexity preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation". It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local interpolation.
+
+```julia
+using PPInterpolation
+
+x = [3.0, 5.0, 6.0, 8.0, 9.0, 11.0, 12.0, 14.0, 15.0]
+f = [10.0, 10.0, 10.0, 10.0, 10.5, 15.0, 50.0, 60.0, 85.0]
+spline = SchumakerQuadraticPP(x, f, LamDerivative(0.5))
 spline(4.0)
 y = Array{Float64}(undef, 100) #the output
 z = collect(range(3.0,stop=15.0,length=100)) #this is sorted input

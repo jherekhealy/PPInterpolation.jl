@@ -185,7 +185,7 @@ end
 	ref =
 		[1 1.08 1.16 1.24 1.32 1.4 1.48 1.56 1.6400000000000001 1.72 1.8 1.88 1.96 2.0408 2.1272 2.22 2.3192000000000004 2.4248000000000003 2.5368 2.6544 2.7600000000000002 2.8463999999999996 2.9135999999999997 2.9616 2.9904 3 2.9904 2.9616 2.9135999999999997 2.8464 2.7600000000000002 2.6544 2.5368 2.4248 2.3192 2.22 2.1272 2.0408 1.96 1.88 1.7999999999999998 1.7200000000000006 1.6400000000000006 1.5600000000000005 1.4800000000000004 1.4000000000000004 1.3200000000000003 1.2400000000000002 1.1600000000000001 1.08 1]
 
-	interp = makeSchumakerQuadraticPP(t, z, SchumakerDerivative())
+	interp = SchumakerQuadraticPP(t, z, SchumakerDerivative())
 	for i ∈ 0:50
 		ui = 1.0 + 4i / 50.0
 		zi = interp(ui)
@@ -197,20 +197,50 @@ end
 @testset "SchumakerRouah" begin
 	strike = Float64.([300, 310, 320, 330, 340, 350, 360, 370, 380, 390, 400])
 	put = [0.09, 0.136, 0.192, 0.288, 0.404, 0.53, 0.736, 1.232, 1.898, 3.104, 4.93]
-	interp = makeSchumakerQuadraticPP(strike, put, SchumakerDerivative())
-	interp2 = makeSchumakerQuadraticPP(strike, put, LamDerivative{Float64}())
-	
-    for i ∈ 0:50
-		ui = strike[1] + (strike[end] - strike[1]) * i / 50.0
+	interp = SchumakerQuadraticPP(strike, put, SchumakerDerivative())
+	interp2 = SchumakerQuadraticPP(strike, put, LamDerivative{Float64}())
+	u = range(strike[1], strike[end], length = 51)
+	z = Array{Float64}(undef, length(u))
+	for (i, ui) ∈ enumerate(u)
 		zi = interp(ui)
+		z[i] = zi
 		z2i = evaluateSecondDerivative(interp, ui)
 		println(ui, " ", zi, " ", evaluateDerivative(interp, ui), " ", z2i)
 		@test z2i >= 0
-        z2i2 = evaluateSecondDerivative(interp2, ui)
+		z2i2 = evaluateSecondDerivative(interp2, ui)
 		println(ui, " ", interp2(ui), " ", evaluateDerivative(interp2, ui), " ", z2i2)
 		@test z2i2 >= 0
-	
 	end
+
+	#Reference from SchumakerSpline.jl package
+	refCoeffMatrixSchumaker = [
+		1.8750047811244443e-5 0.0043499993625167425 0.09;
+		7.50001912449779e-5 0.0046000000000000025 0.11983333120838924;
+		3.1249809385346565e-5 0.005100001274966519 0.136;
+		0.0005000146992544015 0.005599999999999996 0.17880015702950583;
+		0.0002999902808427446 0.007600030398122617 0.192;
+		7.500143987302354e-5 0.0096 0.22066721036009534;
+		0.00014999674541680286 0.010600010598798521 0.288;
+		3.750043494408776e-5 0.011600000000000003 0.32500042831541365;
+		2.8124603542096865e-5 0.012100003024556423 0.404;
+		0.0018002353811719305 0.012600000000000005 0.5137786746330505;
+		0.00025512379154256744 0.0166002655225854 0.53;
+		0.00335634009823203 0.02060000000000003 0.6758029293152359;
+		0.00195953171768991 0.03510736914867771 0.736;
+		0.0006747191898638394 0.04960000000000006 0.8926232151763449;
+		0.0005581216788283097 0.05810418330257513 1.232;
+		0.00566523476667041 0.06659999999999996 1.7065667131963616;
+		0.0025112017886482875 0.09366759336927494 1.898;
+		0.003357625115888136 0.12060000000000015 2.4725000241014516;
+		0.00462865741705083 0.15174228388632785 3.104;
+		0.0011571643542627069 0.18259999999999987 3.6612371398105434
+	]
+	@test isapprox(refCoeffMatrixSchumaker[:, 1], interp.c[:, 1], atol = 1e-15)
+	@test isapprox(refCoeffMatrixSchumaker[:, 2], interp.b, atol = 1e-15)
+	@test isapprox(refCoeffMatrixSchumaker[:, 3], interp.a[1:end-1], atol = 1e-15)
+	z1 = Array{Float64}(undef, length(u)) #the output
+	evaluateSorted!(interp, z1, u)
+	@test isapprox(z, z1, atol = 0e-15)
 end
 
 include("conversion_tests.jl")

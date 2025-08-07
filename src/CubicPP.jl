@@ -3,6 +3,7 @@ import SpecialFunctions: erfc
 export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie, Hermite, Fukasawa
 export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluateIntegral
 export evaluatePiece, evaluateDerivativePiece
+export LinearAutoExtrapolation, ConstantAutoExtrapolation, PieceAutoExtrapolation
 abstract type DerivativeKind end
 struct C2 <: DerivativeKind end
 struct C2Hyman89 <: DerivativeKind end
@@ -13,8 +14,10 @@ struct C2MP2 <: DerivativeKind end
 abstract type PPExtrapolation end
 struct ZeroExtrapolation <: PPExtrapolation
 end
+"Extrapolation is constant beyond first and last knots, using the value at the endpoints"
 struct ConstantAutoExtrapolation <: PPExtrapolation
 end
+"Extrapolation is linear beyond first and last knots, using the slope and value at the endpoints"
 struct LinearAutoExtrapolation <: PPExtrapolation
 end
 struct ConstantExtrapolation <: PPExtrapolation
@@ -23,6 +26,7 @@ end
 struct LinearExtrapolation <: PPExtrapolation
 	slope::Any
 end
+"Extrapolation is using the first/last piecewise polynomial"
 struct PieceAutoExtrapolation <: PPExtrapolation
 end
 
