@@ -44,9 +44,12 @@ Below is an example of performance using `x = sort(rand(500))` and `y=rand(500)`
 | PPInterpolation C2() evaluateSorted|  | 4.670 μs (0 allocations: 0 bytes) |
 | PPInterpolation VanAlbada() | 7.144 μs (13 allocations: 48.64 KiB) | 15.879 μs (1 allocation: 48 bytes) |
 | PPInterpolation QuadraticLagrangePP(x,y) | 54.487 ns (1 allocation: 32 bytes) | 15.711 μs (1 allocation: 48 bytes) |
-| PPInterpolation QuadraticLagrangePP(x,y) evaluateSorted | |  2.942 μs (0 allocations: 0 bytes)|
+| PPInterpolation QuadraticLagrangePP(x,y) evaluateSorted! | |  2.942 μs (0 allocations: 0 bytes)|
+| PPInterpolation SchumakerQuadraticPP(x,y) | 24.237 μs (83 allocations: 151.56 KiB) | 22.751 μs (5 allocations: 4.09 KiB)|
+| PPInterpolation SchumakerQuadraticPP(x,y) evaluateSorted! | 24.237 μs (83 allocations: 151.56 KiB) | 4.823 μs (0 allocations: 0 bytes)|
+| SchumakerSpline Schumaker(x,y) | 1.899 ms (23555 allocations: 8.64 MiB) |   51.600 μs (3005 allocations: 121.26 KiB) |
 
-
+Note: Schumaker benchmark results have been done later on and timings are not strictly comparable with the other numbers.
 
 ## Examples
 ### Cubic spline interpolation
