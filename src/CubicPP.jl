@@ -247,7 +247,7 @@ function computePP(
 	pp.x[1:end] = x
 end
 
-"evaluate a sorted array `za` with piecewise cubic interpolation, putting the results in `v``. `za`` must be sorted in ascending order"
+"evaluate a sorted array `za` with piecewise cubic interpolation, putting the results in `v``. `za`` must be sorted in ascending order. For now it does not support extrapolation."
 function evaluateSorted!(self::Union{PP{3, T, TX}, PP{2, T, TX}}, v::AbstractVector{T}, za::AbstractVector{TZ}) where {T, TX, TZ}
 	ppIndex = 1
 	for j ∈ 1:length(za)
@@ -796,7 +796,7 @@ function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N, T, U}, pdfL
 	yn * (1 - cdfL)
 end
 
-#Integral from -Infty to Infty.
+"Integral of pp(x)*exp(-x^2 / 2) from -Infty to +Infty."
 function evaluateHermiteIntegral(pp::PPInterpolation.PP{3, T, U}; leftExtrapolation = ConstantAutoExtrapolation(), rightExtrapolation = ConstantAutoExtrapolation()) where {T, U}
 	n = length(pp.x)
 	l = pp.x[1]
