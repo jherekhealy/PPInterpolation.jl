@@ -280,7 +280,8 @@ function evaluateLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1,
 end
 
 function evaluateRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	return self.b[end] * (z - self.x[end]) + self.a[end]
+	slope = evaluateDerivativePiece(self, length(self.x) - 1, self.x[end])
+	return slope * (z - self.x[end]) + self.a[end]
 end
 
 function evaluateLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
@@ -296,7 +297,7 @@ function evaluateLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1,
 end
 
 function evaluateRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluatePiece(self, length(self.x) - 2, z)
+	return evaluatePiece(self, length(self.x) - 1, z)
 end
 
 @inline function evaluatePiece(self::PP{3, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
@@ -336,7 +337,7 @@ function evaluateDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, 
 end
 
 function evaluateDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluateDerivativePiece(self, length(self.x) - 2, z)
+	return evaluateDerivativePiece(self, length(self.x) - 1, z)
 end
 
 function evaluateDerivative(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ; extrapolation = LinearAutoExtrapolation()) where {T, TX, TZ}
@@ -438,7 +439,7 @@ function evaluateSecondDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{
 end
 
 function evaluateSecondDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluateSecondDerivativePiece(self, length(self.x) - 2, z)
+	return evaluateSecondDerivativePiece(self, length(self.x) - 1, z)
 end
 function evaluateSecondDerivative(self::PP{N, T, TX}, z::TZ; extrapolation = LinearAutoExtrapolation()) where {N, T, TX, TZ}
 	if z < self.x[1]

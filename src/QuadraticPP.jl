@@ -40,9 +40,9 @@ function SchumakerQuadraticPP(
 	s = computeFirstDerivatives(variant, t, z, epsilon = epsilon)
 	j = 0
 	x = Vector{TX}(undef, 0)
-	a = Vector{T}(undef, 0)
-	b = Vector{T}(undef, 0)
-	c = Vector{T}(undef, 0)
+	a = Vector{typeof(d[1])}(undef, 0)
+	b = Vector{typeof(d[1])}(undef, 0)
+	c = Vector{typeof(d[1])}(undef, 0)
 	n = length(t)
 	for i ∈ 1:n-1
 		if abs(s[i] + s[i+1] - 2 * d[i]) <= epsilon * abs(d[i])
@@ -92,7 +92,7 @@ function SchumakerQuadraticPP(
 	return pp
 end
 
-function computeFirstDerivatives(variant::LamDerivative{TZ}, t::AbstractArray{TX}, z::AbstractArray{TZ}; epsilon = sqrt(eps(TZ))) where {TX, TZ}
+function computeFirstDerivatives(variant::LamDerivative{T}, t::AbstractArray{TX}, z::AbstractArray{TZ}; epsilon = sqrt(eps(TZ))) where {T, TX, TZ}
 	ξ = variant.ξ
 	η = one(TX) - ξ
 
@@ -100,7 +100,7 @@ function computeFirstDerivatives(variant::LamDerivative{TZ}, t::AbstractArray{TX
 	dt = t[2:end] - t[1:end-1]
 	dz = z[2:end] - z[1:end-1]
 	d = dz ./ dt
-	s = zeros(TZ, n)
+	s = zeros(typeof(d[1]), n)
 	for i ∈ 2:n-1
 		if d[i] * d[i-1] > zero(TZ)
 			if (abs(d[i-1]) - abs(d[i])) * (ξ - one(TX) / 2) >= zero(TZ)
@@ -131,7 +131,7 @@ function computeFirstDerivatives(variant::SchumakerDerivative, t::AbstractArray{
 	d = dz ./ dt
 	l = @. sqrt(dt^2 + dz^2)
 	#derivatives not provided, compute sb.
-	s = zeros(TZ, n)
+	s = zeros(typeof(d[1]), n)
 	for i ∈ 2:n-1
 		if d[i] * d[i-1] > zero(TZ)
 			s[i] = (l[i-1] * d[i-1] + l[i] * d[i]) / (l[i-1] + l[i])

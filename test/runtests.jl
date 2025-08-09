@@ -211,6 +211,16 @@ end
 		println(ui, " ", interp2(ui), " ", evaluateDerivative(interp2, ui), " ", z2i2)
 		@test z2i2 >= 0
 	end
+	#continuity test
+	z0 = evaluate(interp, 399.99)
+	z1 = evaluate(interp, 400.01)
+	@test isapprox(z0, z1, atol = 1e-2)
+	z0 = evaluateDerivative(interp, 399.99)
+	z1 = evaluateDerivative(interp, 400.01)
+	@test isapprox(z0, z1, atol = 2e-2)
+	z0 = evaluateDerivative(interp, 399.99, extrapolation = PieceAutoExtrapolation())
+	z1 = evaluateDerivative(interp, 400.01, extrapolation = PieceAutoExtrapolation())
+	@test isapprox(z0, z1, atol = 1e-2)
 
 	#Reference from SchumakerSpline.jl package
 	refCoeffMatrixSchumaker = [
