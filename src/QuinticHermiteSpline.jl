@@ -18,36 +18,8 @@ function computeDEF(
 end
 
 
-function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, y2left::T, y2right::T) where {T,TX}
-    dx = @. x[2:end] - x[1:end-1]
-    s = @. (y[2:end] - y[1:end-1]) / dx
-    n = length(y)
-    rhs = zeros(T, n)
-    dd = zeros(TX, n)
-    dl = zeros(TX, n - 1)
-    du = zeros(TX, n - 1)
-    rhs[1] = y2left
-    dd[1] = one(TX)
-    dd[n] = one(TX)
-    rhs[n] = y2right
-    for i = 2:n-1
-        rhs[i] = 2 * (5 * s[i] - 3 * y1[i] - 2 * y1[i+1]) / dx[i]^2 -
-                 2 * (5 * s[i-1] - 3 * y1[i-1] - 2 * y1[i]) / dx[i-1]^2 -
-                 4 * (8 * y1[i-1] + 7 * y1[i] - 15 * s[i-1]) / dx[i-1]^2 -
-                 30 * (2 * s[i-1] - y1[i] - y1[i-1]) / dx[i-1]^2
-        dd[i] = 3 / (2 * dx[i]) + 3 / (2 * dx[i-1])
-        dl[i-1] = -1 / (2 * dx[i-1])
-        du[i] = -1 / (2 * dx[i])
-    end
-    tri = Tridiagonal(dl, dd, du)
-    y2 = tri \ rhs
-    c = zeros(T, (n, 4))
-    #q''(xi+1)=f''i+1
-    computeDEF(c, y1, y2, s, dx)
-    return PP(5, copy(y), copy(y1), c, copy(x))
-end
-
-function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}) where {T,TX}
+#Tridiagonal system for the second derivatives at the interior knots, and the slopes. The boundary rows 1 and n are left for the caller.
+function quinticSystem(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}) where {T,TX}
     dx = @. x[2:end] - x[1:end-1]
     s = @. (y[2:end] - y[1:end-1]) / dx
     n = length(y)
@@ -55,12 +27,6 @@ function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::A
     d = zeros(TX, n)
     dl = zeros(TX, n - 1)
     du = zeros(TX, n - 1)
-    rhs[1] = zero(T)
-    d[1] = one(TX)
-    du[1] = -one(TX) #y''(x0)= y''(x1)
-    d[n] = one(TX)
-    dl[n-1] = -one(TX)
-    rhs[n] = zero(T)
     for i = 2:n-1
         rhs[i] = 2 * (5 * s[i] - 3 * y1[i] - 2 * y1[i+1]) / dx[i]^2 -
                  2 * (5 * s[i-1] - 3 * y1[i-1] - 2 * y1[i]) / dx[i-1]^2 -
@@ -70,12 +36,36 @@ function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::A
         dl[i-1] = -1 / (2 * dx[i-1])
         du[i] = -1 / (2 * dx[i])
     end
-    tri = Tridiagonal(dl, d, du)
-    y2 = tri \ rhs
-    c = zeros(T, (n,4))
+    return dx, s, rhs, dl, d, du
+end
+
+function makeQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, dx, s, rhs, dl, d, du) where {T,TX}
+    n = length(y)
+    y2 = Tridiagonal(dl, d, du) \ rhs
+    c = zeros(T, (n, 4))
     #q''(xi+1)=f''i+1
     computeDEF(c, y1, y2, s, dx)
     return PP(5, copy(y), copy(y1), c, copy(x))
+end
+
+function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, y2left::T, y2right::T) where {T,TX}
+    dx, s, rhs, dl, d, du = quinticSystem(x, y, y1)
+    n = length(y)
+    rhs[1] = y2left
+    d[1] = one(TX)
+    d[n] = one(TX)
+    rhs[n] = y2right
+    return makeQuinticPP(x, y, y1, dx, s, rhs, dl, d, du)
+end
+
+function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}) where {T,TX}
+    dx, s, rhs, dl, d, du = quinticSystem(x, y, y1)
+    n = length(y)
+    d[1] = one(TX)
+    du[1] = -one(TX) #y''(x0)= y''(x1)
+    d[n] = one(TX)
+    dl[n-1] = -one(TX)
+    return makeQuinticPP(x, y, y1, dx, s, rhs, dl, d, du)
 end
 
 function evaluate(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
@@ -109,9 +99,9 @@ function evaluateDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
 end
 function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
-        return zero(TZ)
+        return zero(T)
     elseif z >= self.x[end]
-        return zero(TZ)
+        return zero(T)
     end
     i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
     if z != self.x[i] && i > 1
@@ -122,9 +112,9 @@ function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
 end
 function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     if z <= self.x[1]
-        return zero(TZ)
+        return zero(T)
     elseif z >= self.x[end]
-        return zero(TZ)
+        return zero(T)
     end
     i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
     if z != self.x[i] && i > 1
