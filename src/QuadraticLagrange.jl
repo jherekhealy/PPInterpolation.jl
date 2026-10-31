@@ -40,7 +40,8 @@ end
 "evaluate a sorted array `za` with quadratic lagrange interpolation, returning the result of the interpolation as a new array. `za` must be sorted in ascending order"
 function evaluateSorted(pp::QuadraticLagrangePP{TX,T}, z::AbstractArray{TZ}) where {TX,T,TZ}
     v = Array{T}(undef, length(z))
-    evaluateSorted!(v, pp.x, pp.y, za)   
+    evaluateSorted!(pp, v, z)
+    return v
 end
 
 "evaluate the quadratic lagrange interpolation at a given point `z`"

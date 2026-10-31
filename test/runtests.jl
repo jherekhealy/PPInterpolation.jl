@@ -152,6 +152,7 @@ using QuadGK
 	q = QuadraticLagrangePP(x, y)
 	@time evaluateSorted!(q, yNew, z)
 	@test isapprox(y[10], q(x[10]), atol = 1e-15)
+	@test evaluateSorted(q, z) ≈ q.(z)
 	val = evaluateDerivative(q, 0.5)
 	autoval = ForwardDiff.derivative(q, 0.5)
 	@test isapprox(val, autoval, atol = 1e-12)
@@ -177,6 +178,9 @@ end
 	@time yNew[1:end] = spline(z)
 	@test isapprox(y[10], spline(x[10]), atol = 1e-15)
 	@test isapprox(yp[10], evaluateDerivative(spline, x[10]), atol = 1e-15)
+	zi = (x[10] + x[11]) / 2
+	@test isapprox(evaluateSecondDerivative(spline, zi), ForwardDiff.derivative(u -> evaluateDerivative(spline, u), zi), rtol = 1e-8)
+	@test isapprox(PPInterpolation.evaluateThirdDerivative(spline, zi), ForwardDiff.derivative(u -> evaluateSecondDerivative(spline, u), zi), rtol = 1e-8)
 end
 
 @testset "SchumakerExample" begin

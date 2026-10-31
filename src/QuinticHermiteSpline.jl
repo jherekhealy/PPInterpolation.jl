@@ -113,6 +113,7 @@ function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     elseif z >= self.x[end]
         return zero(TZ)
     end
+    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
     if z != self.x[i] && i > 1
         i -= 1
     end
@@ -125,6 +126,7 @@ function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     elseif z >= self.x[end]
         return zero(TZ)
     end
+    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
     if z != self.x[i] && i > 1
         i -= 1
     end

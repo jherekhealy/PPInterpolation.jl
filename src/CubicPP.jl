@@ -75,29 +75,29 @@ function computeLinearPP(pp::PP{N, T, TX}, x::AbstractArray{TX}, y::AbstractArra
 	n = length(x)
 	if n <= 1
 		pp.a[1:end] = y
-		pp.b[1:end] = zeros(n)
-		pp.c[1:end, 1:end] = zeros(n - 1, (N - 1))
+		pp.b[1:end] = zeros(T, n)
+		pp.c[1:end, 1:end] = zeros(T, n - 1, (N - 1))
 		pp.x[1:end] = x
 	elseif n == 2
 		t = y[2] - y[1]
-		b = zeros(n)
-		if abs(x[2] - x[1]) > eps()
+		b = zeros(T, n)
+		if abs(x[2] - x[1]) > eps(TX)
 			b[1] = t / (x[2] - x[1])
 		end
 		b[2] = b[1]
 		pp.a[1:end] = y
 		pp.b[1:end] = b
-		pp.c[1:end, 1:end] = zeros(n - 1, (N - 1))
+		pp.c[1:end, 1:end] = zeros(T, n - 1, (N - 1))
 		pp.x[1:end] = x
 	else
 		# on xi, xi+1, f(x)= yi (xi+1-x) + yi (x-xi) = A + B (x-xi) => B = (yi-yi+1)/(xi-xi+1)
-		b = zeros(n)
+		b = zeros(T, n)
 		for i ∈ 1:n-1
 			b[i] = (y[i+1] - y[i]) / (x[i+1] - x[i])
 		end
 		pp.a[1:end] = y
 		pp.b[1:end] = b
-		pp.c[1:end, 1:end] = zeros(n - 1, (N - 1))
+		pp.c[1:end, 1:end] = zeros(T, n - 1, (N - 1))
 		pp.x[1:end] = x
 	end
 end
@@ -607,7 +607,7 @@ end
 
 function estimateDerivativeParabolic(x::AbstractArray{TX}, y::AbstractArray{T}) where {T, TX}
 	n = length(x)
-	b = zeros(n)
+	b = zeros(T, n)
 	dx = x[2:end] - x[1:end-1]
 	S = (y[2:end] - y[1:end-1]) ./ dx
 	for i ∈ 2:n-1
@@ -759,8 +759,7 @@ function evaluateHermiteIntegralBounded(pp::PPInterpolation.PP{2, T, U}, i::Int,
 	moment = (yn - slope * pp.x[n]) * (1 - cdfL) + slope * pdfL
 	integral += moment
 	if isnan(integral) || isinf(integral)
-		println(z, " ", ckIndex, " inf integral ", pp)
-		throw(DomainError("infinite integral"))
+		throw(DomainError(integral, "infinite integral"))
 	end
 	return integral
 end
@@ -817,8 +816,7 @@ function evaluateHermiteIntegral(pp::PPInterpolation.PP{3, T, U}; leftExtrapolat
 	end
 	integral += hermiteIntegralRightExtrapolation(pp, pdfL, cdfL, rightExtrapolation)
 	if isnan(integral) || isinf(integral)
-		println(z, " ", ckIndex, " inf integral ", pp)
-		throw(DomainError("infinite integral"))
+		throw(DomainError(integral, "infinite integral"))
 	end
 	return integral
 end
