@@ -468,7 +468,7 @@ end
 end
 
 function evaluateThirdDerivative(self::PP{N, T, TX}, z::TZ) where {N, T, TX, TZ}
-	if z <= self.x[1]
+	if z < self.x[1]
 		return zero(T)
 	elseif z >= self.x[end]
 		return zero(T)

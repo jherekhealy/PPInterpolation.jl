@@ -98,7 +98,7 @@ function evaluateDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2] + h * (4 * self.c[i, 3] + h * 5 * self.c[i, 4])))
 end
 function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
+    if z < self.x[1]
         return zero(T)
     elseif z >= self.x[end]
         return zero(T)
@@ -111,7 +111,7 @@ function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
     return 2 * self.c[i, 1] + h * (3 * 2 * self.c[i, 2] + h * (4 * 3 * self.c[i, 3] + h * 5 * 4 * self.c[i, 4]))
 end
 function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
+    if z < self.x[1]
         return zero(T)
     elseif z >= self.x[end]
         return zero(T)

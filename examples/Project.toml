@@ -1,0 +1,6 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+PPInterpolation = "0bf8acf5-7f56-4370-abee-dfc0c3b7d49e"
+
+[sources]
+PPInterpolation = {path = ".."}

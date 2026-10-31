@@ -181,6 +181,7 @@ end
 	zi = (x[10] + x[11]) / 2
 	@test isapprox(evaluateSecondDerivative(spline, zi), ForwardDiff.derivative(u -> evaluateDerivative(spline, u), zi), rtol = 1e-8)
 	@test isapprox(PPInterpolation.evaluateThirdDerivative(spline, zi), ForwardDiff.derivative(u -> evaluateSecondDerivative(spline, u), zi), rtol = 1e-8)
+	@test isapprox(evaluateSecondDerivative(spline, x[1]), evaluateSecondDerivative(spline, nextfloat(x[1])), rtol = 1e-6)
 end
 
 @testset "SchumakerExample" begin
