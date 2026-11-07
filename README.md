@@ -68,6 +68,10 @@ The C2 spline overshoots around the sharp increase, while the filtered `C2Hyman8
 
 ![C2 cubic spline and C2Hyman89](docs/img/cubic_c2.png)
 
+The boundary conditions are given by the third and fifth parameters, with the corresponding values as fourth and sixth parameters. They mostly change the spline on the first and last intervals:
+
+![Boundary conditions of the C2 cubic spline](docs/img/boundary.png)
+
 Various monotonicity preserving scheme are available by changing the last parameter `C2()` to
 
 * `C2Hyman89()` : the first derivatives are adjusted to preserve monotonicity according to Dougherty and Hyman "Nonnegativity-, Monotonicity-, or Convexity-Preserving Cubic and Quintic Hermite Interpolation" (1989).
@@ -98,6 +102,8 @@ The spline may be evaluated beyond the original range for `x`. It then makes use
 evaluate(spline, 4.0, extrapolation=ConstantAutoExtrapolation())
 ```
 To evaluate using the first/last polynomial piece, use `evaluate(spline, 4.0, extrapolation=PieceAutoExtrapolation())`
+
+![Extrapolation of a cubic spline](docs/img/extrapolation.png)
 
 ### Derivatives and integrals
 The first and second derivatives of a spline are evaluated with `evaluateDerivative(spline, z)` and `evaluateSecondDerivative(spline, z)`. The integral of the spline between `z1` and `z2` (within the knots) is `evaluateIntegral(spline, z1, z2)`.

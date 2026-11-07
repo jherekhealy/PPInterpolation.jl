@@ -81,3 +81,38 @@ lines!(ax, zq, g2.(zq), color = INK, linestyle = :dash, linewidth = 1.5, label =
 vlines!(ax, xq, color = (:black, 0.12), linewidth = 1)
 axislegend(ax, position = :rb)
 save(joinpath(OUT, "quintic.png"), fig, px_per_unit = 2)
+
+#boundary conditions of the C2 cubic spline
+xb = [0.0, 1.0, 2.0, 3.5, 4.0, 5.0]
+yb = [1.0, 2.2, 2.0, 0.8, 0.9, 1.6]
+zb = range(xb[1], xb[end], length = 1000)
+fig = Figure(size = (760, 430))
+ax = Axis(fig[1, 1], title = "Boundary conditions of the C2 cubic spline", xlabel = "x", ylabel = "f(x)")
+for (i, (label, bc, value)) in enumerate([
+    ("SECOND_DERIVATIVE, 0 (natural)", PPInterpolation.SECOND_DERIVATIVE, 0.0),
+    ("NOT_A_KNOT", PPInterpolation.NOT_A_KNOT, 0.0),
+    ("FIRST_DERIVATIVE, 0 (clamped)", PPInterpolation.FIRST_DERIVATIVE, 0.0),
+])
+    spl = makeCubicPP(xb, yb, bc, value, bc, value, C2())
+    lines!(ax, zb, spl.(zb), color = SERIES[i], label = label)
+end
+scatter!(ax, xb, yb, color = INK, markersize = 9, label = "data", strokecolor = :white, strokewidth = 1.5)
+axislegend(ax, position = :rt)
+save(joinpath(OUT, "boundary.png"), fig, px_per_unit = 2)
+
+#extrapolation beyond the first and last knots
+spl = makeCubicPP(xb, yb, PPInterpolation.NOT_A_KNOT, 0.0, PPInterpolation.NOT_A_KNOT, 0.0, C2())
+ze = range(xb[1] - 1.5, xb[end] + 1.5, length = 1000)
+fig = Figure(size = (760, 430))
+ax = Axis(fig[1, 1], title = "Extrapolation of a cubic spline", xlabel = "x", ylabel = "f(x)")
+vspan!(ax, [ze[1], xb[end]], [xb[1], ze[end]], color = (:black, 0.04))
+for (i, (label, ext)) in enumerate([
+    ("LinearAutoExtrapolation() (default)", LinearAutoExtrapolation()),
+    ("ConstantAutoExtrapolation()", ConstantAutoExtrapolation()),
+    ("PieceAutoExtrapolation()", PieceAutoExtrapolation()),
+])
+    lines!(ax, ze, [evaluate(spl, t, extrapolation = ext) for t in ze], color = SERIES[i], label = label)
+end
+scatter!(ax, xb, yb, color = INK, markersize = 9, label = "data", strokecolor = :white, strokewidth = 1.5)
+axislegend(ax, position = :rb)
+save(joinpath(OUT, "extrapolation.png"), fig, px_per_unit = 2)
