@@ -102,6 +102,8 @@ The limiters produce C1 Hermite splines. Unlike the parabolic `Bessel()` estimat
 
 The spline may be evaluated beyond the original range for `x`. The extrapolation is given when building the spline, and defaults to a linear extrapolation using the value and slope at the end-points:
 ```julia
+spline = makeCubicPP(x, f, C2(), extrapolation = LinearAutoExtrapolation()) # the default
+spline(20.0) # 240.5 = 85 + 5 * 31.1, the value and slope at x = 15
 spline = makeCubicPP(x, f, C2(), extrapolation = ConstantAutoExtrapolation())
 spline(20.0) # 85.0
 ```
