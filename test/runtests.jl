@@ -61,6 +61,37 @@ end
 		end
 	end
 end
+@testset "LimiterBoundaries" begin
+	x = [0.0, 1.0, 2.5, 3.0, 4.5]
+	y = 2 .* x .+ 1
+	for v in [Bessel(), VanLeer(), VanAlbada(), FritschButland(), Brodlie(), HuynRational()]
+		spline = makeCubicPP(x, y, PPInterpolation.NOT_A_KNOT, 0.0, PPInterpolation.NOT_A_KNOT, 0.0, v)
+		@test isapprox(spline.b[1], 2.0, atol = 1e-14)
+		@test isapprox(spline.b[end], 2.0, atol = 1e-14)
+	end
+end
+
+@testset "LimiterFlatAndExtrema" begin
+	#increasing then flat, and a local maximum: the spline must stay flat and not overshoot
+	x = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+	y = [0.0, 1.0, 2.0, 2.0, 1.0, 1.0]
+	for v in [VanAlbada(), Brodlie()]
+		spline = makeCubicPP(x, y, PPInterpolation.FIRST_DIFFERENCE, 0.0, PPInterpolation.FIRST_DIFFERENCE, 0.0, v)
+		z = range(2.0, 3.0, length = 101)
+		@test maximum(abs.(spline.(z) .- 2.0)) < 1e-14
+		z = range(4.0, 5.0, length = 101)
+		@test maximum(abs.(spline.(z) .- 1.0)) < 1e-14
+	end
+end
+
+@testset "C2MP2Symmetry" begin
+	x = [0.0, 1.0, 2.0, 3.0, 4.0]
+	y = [0.0, 1.0, 3.0, 3.5, 6.0]
+	b = makeCubicPP(x, y, PPInterpolation.FIRST_DIFFERENCE, 0.0, PPInterpolation.FIRST_DIFFERENCE, 0.0, C2MP2()).b
+	bm = makeCubicPP(x, -y, PPInterpolation.FIRST_DIFFERENCE, 0.0, PPInterpolation.FIRST_DIFFERENCE, 0.0, C2MP2()).b
+	@test b ≈ -bm
+end
+
 @testset "HaganCurveAuto" begin
 	#for quintic: first pass compute cubic first derivative, second pass, use cubic b, and optimize second derivative.
 	t = [0.0, 0.1, 1.0, 2.0, 3.0, 4.0, 9.0, 20.0, 30.0]

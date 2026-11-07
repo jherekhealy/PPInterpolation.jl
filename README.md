@@ -1,7 +1,7 @@
 # Package PPInterpolation
 | Status | Coverage |
 | :----: | :----: |
-| [![Build Status](https://github.com/jherekhealy/PPInterpolation.jl/actions/workflows/julia-runtests.yml/badge.svg) | [![codecov.io](http://codecov.io/github/jherekhealy/PPInterpolation.jl/coverage.svg?branch=master)](http://codecov.io/github/jherekhealy/PPInterpolation.jl?branch=master) |
+| [![Build Status](https://github.com/jherekhealy/PPInterpolation.jl/actions/workflows/julia-runtests.yml/badge.svg)](https://github.com/jherekhealy/PPInterpolation.jl/actions/workflows/julia-runtests.yml) | [![codecov.io](https://codecov.io/gh/jherekhealy/PPInterpolation.jl/branch/master/graph/badge.svg)](https://app.codecov.io/gh/jherekhealy/PPInterpolation.jl?branch=master) |
 
 
 Piecewise polynomial interpolation in Julia following a straightforward implementation. This is mostly oriented towards various cubic spline interpolation:
@@ -21,7 +21,7 @@ with the following boundary conditions:
 Also supported are C3 Hermite quintic spline with  given first derivatives at all knots, plus second derivatives at end-points. 
 Cubic and quintic Lavery splines are available in the package [Lavery.jl](https://github.com/jherekhealy/LaverySpline.jl).
 
-Since version 0.7.4, the monotonicity and convexity preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation" has been added. It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local interpolation.
+Since version 0.7.4, the shape preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation" has been added. It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local, monotone and convex interpolation.
 
 
 ## Why another Julia interpolation package?
@@ -71,13 +71,23 @@ The C2 spline overshoots around the sharp increase, while the filtered `C2Hyman8
 Various monotonicity preserving scheme are available by changing the last parameter `C2()` to
 
 * `C2Hyman89()` : the first derivatives are adjusted to preserve monotonicity according to Dougherty and Hyman "Nonnegativity-, Monotonicity-, or Convexity-Preserving Cubic and Quintic Hermite Interpolation" (1989).
-* `C2MP()` : adjust first derivatives according to the simplest monotonicity preserving scheme. See Huyn "Accurate Monotone Cubic Interpolation" (1991).
-* `C2MP2()` : adjust first derivatives according to the extended monotonicity preserving scheme. See Huyn "Accurate Monotone Cubic Interpolation" (1991).
-* `HuynRational()` : the first derivatives are estimated through a rational function which guarantees monotonicity. See Huyn "Accurate Monotone Cubic Interpolation" (1991).
-* `VanAlbada()` : Van Albada type of approximation for the first derivatives. See Huyn "Accurate Monotone Cubic Interpolation" (1991).
-* `VanLeer()` : Van Leer type of approximation for the first derivatives. See Huyn "Accurate Monotone Cubic Interpolation" (1991).
+* `C2MP()` : adjust first derivatives according to the simplest monotonicity preserving scheme. See Huynh "Accurate Monotone Cubic Interpolation" (1991).
+* `C2MP2()` : adjust first derivatives according to the extended monotonicity preserving scheme. See Huynh "Accurate Monotone Cubic Interpolation" (1991).
+* `HuynRational()` : the first derivatives are estimated through a rational function which guarantees monotonicity. See Huynh "Accurate Monotone Cubic Interpolation" (1991).
+* `VanAlbada()` : Van Albada type of approximation for the first derivatives. See Huynh "Accurate Monotone Cubic Interpolation" (1991).
+* `VanLeer()` : Van Leer type of approximation for the first derivatives. See Huynh "Accurate Monotone Cubic Interpolation" (1991).
 * `FritschButland()`  : the first derivatives are estimated through a weighted harmonic mean which guarantees monotonicity.
 * `Brodlie()` : similar to FritchButland but takes into account the non-uniformity of the knots better, see Fritsch and Butland "A method for constructing local monotone piecewise cubic interpolants"  (1984).
+
+Other C1 choices of first derivatives, which do not preserve monotonicity:
+
+* `Bessel()` : the derivative of the parabola through three consecutive points.
+* `Fukasawa()` : equal incidence and reflection angles, see Fukasawa et al. (2011) "Model-free implied volatility: from surface to index".
+* `Hermite(b)` : the given first derivatives `b` at the knots.
+
+and `C2HymanNonNegative()` adjusts the C2 spline first derivatives to preserve non-negativity of the data.
+
+For the C1 schemes, the `NOT_A_KNOT` boundary condition is approximated by the derivative of the parabola through the three first (or last) points. It is not limited, and may thus break monotonicity on the first or last interval. Use `FIRST_DIFFERENCE` or `SECOND_DERIVATIVE` to keep monotonicity.
 
 The limiters produce C1 Hermite splines. Unlike the parabolic `Bessel()` estimate, they preserve monotonicity:
 
@@ -88,6 +98,9 @@ The spline may be evaluated beyond the original range for `x`. It then makes use
 evaluate(spline, 4.0, extrapolation=ConstantAutoExtrapolation())
 ```
 To evaluate using the first/last polynomial piece, use `evaluate(spline, 4.0, extrapolation=PieceAutoExtrapolation())`
+
+### Derivatives and integrals
+The first and second derivatives of a spline are evaluated with `evaluateDerivative(spline, z)` and `evaluateSecondDerivative(spline, z)`. The integral of the spline between `z1` and `z2` (within the knots) is `evaluateIntegral(spline, z1, z2)`.
 
 ### Quadratic Lagrange interpolation
 Quadratic Lagrange interpolation has fast evaluation API with mutable variable:
@@ -105,7 +118,9 @@ evaluateSorted!(spline,y,z)
 ```
 
 ### Schumaker quadratic spline interpolation
-`SchumakerQuadraticPP` implements the monotonicity and convexity preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation". It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local interpolation.
+`SchumakerQuadraticPP` implements the shape preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation". It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local interpolation.
+
+The spline preserves convexity. Monotonicity is preserved only if the first derivatives at the knots are consistent with it: this is guaranteed with `LamDerivative`, but not with the default `SchumakerDerivative()` estimate, which may slightly overshoot on monotone data.
 
 ```julia
 using PPInterpolation
@@ -140,5 +155,8 @@ evaluateSecondDerivative(spline, 1.2)
 Compared to the C1 cubic Hermite spline with the same first derivatives, the second derivative is continuous and much closer to the exact one:
 
 ![Second derivative of quintic and cubic Hermite splines](docs/img/quintic.png)
+
+### B-spline conversion
+When the package [BSplines.jl](https://github.com/sostock/BSplines.jl) is loaded, quadratic and cubic splines may be converted to and from a B-spline representation with `convert(BSplines.Spline, spline)` and `convert(PP{3,Float64,Float64}, bspline)`.
 
 The figures are generated by `julia --project=examples examples/readme_plots.jl`.

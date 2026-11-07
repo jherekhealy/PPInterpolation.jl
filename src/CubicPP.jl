@@ -219,7 +219,8 @@ function computePP(
 	b = pp.b
 	fillDerivativeEstimate(limiter, dx, S, b)
 	if leftBoundary == NOT_A_KNOT
-		b[1] = S[2] * dx[1] / (dx[2] * (dx[2] + dx[1])) - S[1] * ((dx[2] / dx[1] + 2) / (dx[2] + dx[1]))
+		#derivative of the parabola through the first three points
+		b[1] = ((2 * dx[1] + dx[2]) * S[1] - dx[1] * S[2]) / (dx[1] + dx[2])
 	elseif leftBoundary == FIRST_DIFFERENCE
 		b[1] = S[1]
 	elseif leftBoundary == FIRST_DERIVATIVE
@@ -228,9 +229,7 @@ function computePP(
 		b[1] = (-leftValue / 2 * dx[1] - b[2] + 3 * S[1]) / 2
 	end
 	if rightBoundary == NOT_A_KNOT
-		b[n] =
-			S[n-2] * dx[n-1] / (dx[n-2] * (dx[n-2] + dx[n-1])) -
-			S[n-1] * ((dx[n-2] / dx[n-1] + 2) / (dx[n-2] + dx[n-1]))
+		b[n] = ((2 * dx[n-1] + dx[n-2]) * S[n-1] - dx[n-1] * S[n-2]) / (dx[n-2] + dx[n-1])
 	elseif rightBoundary == FIRST_DERIVATIVE
 		b[n] = rightValue
 	elseif rightBoundary == FIRST_DIFFERENCE
@@ -535,7 +534,7 @@ function filterSlope(kind::C2MP2, y::AbstractArray{T}, b::AbstractArray{T}, dx::
 		Sip = S[i]
 		lowerBound = minmod(Sim, Sip)
 		upperBound = (sign(Sim) + sign(Sip)) / 2 * min(max(abs(Sim), abs(Sip)), 3 * min(abs(Sim), abs(Sip)))
-		b[i] = min(max(lowerBound, b[i]), upperBound)
+		b[i] = clamp(b[i], min(lowerBound, upperBound), max(lowerBound, upperBound))
 	end
 end
 
@@ -628,7 +627,7 @@ end
 function limit(::VanAlbada, s::T, t::T) where {T}
 	st = s * t
 	if st == 0
-		return s
+		return zero(T)
 	end
 	return st * (s + t) / (s^2 + t^2)
 end
@@ -692,8 +691,8 @@ function fillDerivativeEstimate(limiter::Brodlie, dx::AbstractArray{TX}, S::Abst
 	for i ∈ 2:n
 		s, t = S[i-1], S[i]
 		st = s * t
-		if st == 0
-			b[i] = s
+		if st <= 0
+			b[i] = zero(T)
 		else
 			α = (dx[i-1] + 2 * dx[i]) / (3 * (dx[i-1] + dx[i]))
 			b[i] = (st) / (α * t + (1 - α) * s)
@@ -796,7 +795,7 @@ function hermiteIntegralRightExtrapolation(pp::PPInterpolation.PP{N, T, U}, pdfL
 	yn * (1 - cdfL)
 end
 
-"Integral of pp(x)*exp(-x^2 / 2) from -Infty to +Infty."
+"Integral of pp(x)*exp(-x^2 / 2)/sqrt(2π) (the standard normal density) from -Infty to +Infty."
 function evaluateHermiteIntegral(pp::PPInterpolation.PP{3, T, U}; leftExtrapolation = ConstantAutoExtrapolation(), rightExtrapolation = ConstantAutoExtrapolation()) where {T, U}
 	n = length(pp.x)
 	l = pp.x[1]
