@@ -39,87 +39,37 @@ function quinticSystem(x::AbstractVector{TX}, y::AbstractVector{T}, y1::Abstract
     return dx, s, rhs, dl, d, du
 end
 
-function makeQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, dx, s, rhs, dl, d, du) where {T,TX}
+function makeQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, dx, s, rhs, dl, d, du, extrapolation::PPExtrapolation) where {T,TX}
     n = length(y)
     y2 = Tridiagonal(dl, d, du) \ rhs
-    c = zeros(T, (n, 4))
+    c = zeros(T, (n - 1, 4))
     #q''(xi+1)=f''i+1
     computeDEF(c, y1, y2, s, dx)
-    return PP(5, copy(y), copy(y1), c, copy(x))
+    return PP(5, copy(y), copy(y1), c, copy(x), extrapolation = extrapolation)
 end
 
-function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, y2left::T, y2right::T) where {T,TX}
+"""
+    makeHermiteQuinticPP(x, y, y1[, y2left, y2right]; extrapolation = LinearAutoExtrapolation())
+
+C3 quintic spline interpolating the values `y` and first derivatives `y1` at the knots `x`.
+The second derivatives at the end-points are `y2left` and `y2right` when given, otherwise equal to the second derivatives at the next knots.
+"""
+function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}, y2left::T, y2right::T; extrapolation::PPExtrapolation = LinearAutoExtrapolation()) where {T,TX}
     dx, s, rhs, dl, d, du = quinticSystem(x, y, y1)
     n = length(y)
     rhs[1] = y2left
     d[1] = one(TX)
     d[n] = one(TX)
     rhs[n] = y2right
-    return makeQuinticPP(x, y, y1, dx, s, rhs, dl, d, du)
+    return makeQuinticPP(x, y, y1, dx, s, rhs, dl, d, du, extrapolation)
 end
 
-function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}) where {T,TX}
+function makeHermiteQuinticPP(x::AbstractVector{TX}, y::AbstractVector{T}, y1::AbstractVector{T}; extrapolation::PPExtrapolation = LinearAutoExtrapolation()) where {T,TX}
     dx, s, rhs, dl, d, du = quinticSystem(x, y, y1)
     n = length(y)
     d[1] = one(TX)
     du[1] = -one(TX) #y''(x0)= y''(x1)
     d[n] = one(TX)
     dl[n-1] = -one(TX)
-    return makeQuinticPP(x, y, y1, dx, s, rhs, dl, d, du)
-end
-
-function evaluate(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
-        return self.b[1] * (z - self.x[1]) + self.a[1]
-    elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope * (z - self.x[end]) + self.a[end]
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2] + h * (self.c[i, 3] + h * self.c[i, 4]))))
-end
-
-function evaluateDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
-    if z <= self.x[1]
-        return self.b[1]
-    elseif z >= self.x[end]
-        rightSlope = self.b[end]
-        return rightSlope
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2] + h * (4 * self.c[i, 3] + h * 5 * self.c[i, 4])))
-end
-function evaluateSecondDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
-    if z < self.x[1]
-        return zero(T)
-    elseif z >= self.x[end]
-        return zero(T)
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return 2 * self.c[i, 1] + h * (3 * 2 * self.c[i, 2] + h * (4 * 3 * self.c[i, 3] + h * 5 * 4 * self.c[i, 4]))
-end
-function evaluateThirdDerivative(self::PP{5,T,TX}, z::TZ) where {T,TX,TZ}
-    if z < self.x[1]
-        return zero(T)
-    elseif z >= self.x[end]
-        return zero(T)
-    end
-    i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-    if z != self.x[i] && i > 1
-        i -= 1
-    end
-    h = z - self.x[i]
-    return ((3 * 2 * self.c[i, 2] + h * (4 * 3 * 2 * self.c[i, 3] + h * 5 * 4 * 3 * self.c[i, 4])))
+    return makeQuinticPP(x, y, y1, dx, s, rhs, dl, d, du, extrapolation)
 end

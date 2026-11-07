@@ -1,9 +1,8 @@
 using LinearAlgebra
 import SpecialFunctions: erfc
-export PP, makeLinearPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, C2MP2, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie, Hermite, Fukasawa
-export evaluateDerivative, evaluateSecondDerivative, evaluateThirdDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluateIntegral
-export evaluatePiece, evaluateDerivativePiece
-export LinearAutoExtrapolation, ConstantAutoExtrapolation, PieceAutoExtrapolation
+export makeLinearPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, C2MP2, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie, Hermite, Fukasawa
+export CubicSplineNatural, CubicSplineNotAKnot
+export Natural, NotAKnot, FirstDifference, FirstDerivative, SecondDerivative
 abstract type DerivativeKind end
 struct C2 <: DerivativeKind end
 struct C2Hyman89 <: DerivativeKind end
@@ -11,24 +10,27 @@ struct C2HymanNonNegative <: DerivativeKind end
 struct C2MP <: DerivativeKind end
 struct C2MP2 <: DerivativeKind end
 @enum PPBoundary NOT_A_KNOT = 0 FIRST_DERIVATIVE = 1 SECOND_DERIVATIVE = 2 FIRST_DIFFERENCE = 3
-abstract type PPExtrapolation end
-struct ZeroExtrapolation <: PPExtrapolation
+
+abstract type BoundaryCondition end
+"The second derivative at the end-point is `value`."
+struct SecondDerivative{T} <: BoundaryCondition
+	value::T
 end
-"Extrapolation is constant beyond first and last knots, using the value at the endpoints"
-struct ConstantAutoExtrapolation <: PPExtrapolation
+"The first derivative at the end-point is `value`."
+struct FirstDerivative{T} <: BoundaryCondition
+	value::T
 end
-"Extrapolation is linear beyond first and last knots, using the slope and value at the endpoints"
-struct LinearAutoExtrapolation <: PPExtrapolation
-end
-struct ConstantExtrapolation <: PPExtrapolation
-	value::Any
-end
-struct LinearExtrapolation <: PPExtrapolation
-	slope::Any
-end
-"Extrapolation is using the first/last piecewise polynomial"
-struct PieceAutoExtrapolation <: PPExtrapolation
-end
+"The first derivative at the end-point is the slope of the first (or last) segment."
+struct FirstDifference <: BoundaryCondition end
+"The third derivative is continuous at the second (or penultimate) knot. For C1 schemes, the derivative of the parabola through the three end points."
+struct NotAKnot <: BoundaryCondition end
+"Natural boundary condition: the second derivative at the end-point is zero."
+Natural() = SecondDerivative(0)
+
+boundaryPair(bc::SecondDerivative, ::Type{T}) where {T} = (SECOND_DERIVATIVE, T(bc.value))
+boundaryPair(bc::FirstDerivative, ::Type{T}) where {T} = (FIRST_DERIVATIVE, T(bc.value))
+boundaryPair(::FirstDifference, ::Type{T}) where {T} = (FIRST_DIFFERENCE, zero(T))
+boundaryPair(::NotAKnot, ::Type{T}) where {T} = (NOT_A_KNOT, zero(T))
 
 abstract type LimiterDerivative <: DerivativeKind end
 "The derivative at each knot is passed as parameter."
@@ -48,25 +50,10 @@ struct FritschButland <: LimiterDerivative end
 "Fritch Butland 1984"
 struct Brodlie <: LimiterDerivative end
 
-struct PP{N, T, TX, VT <: AbstractArray{T}, MT <: AbstractMatrix{T}, VX <: AbstractArray{TX}}
-	a::VT
-	b::VT
-	c::MT #c[:,i] = coeff of x^{i+1}
-	x::VX
-end
-
-PP(N::Int, T, TX, n::Int) = PP{N, T, TX, Vector{T}, Matrix{T}, Vector{TX}}(zeros(T, n), zeros(T, n), zeros(T, (n - 1, N - 1)), zeros(TX, n))
-PP(N::Int, a::AbstractArray{T}, b::AbstractArray{T}, c::AbstractMatrix{T}, x::AbstractArray{TX}) where {T <: Real, TX} =
-	PP{N, T, TX, typeof(a), typeof(c), typeof(x)}(a, b, c, x)
 
 
-Base.length(p::PP) = Base.length(p.x)
-Base.size(p::PP) = Base.size(p.x)
-Base.broadcastable(p::PP) = Ref(p)
-
-
-function makeLinearPP(x::AbstractArray{TX}, y::AbstractArray{T}) where {T, TX}
-	pp = PP(2, T, TX, length(y))
+function makeLinearPP(x::AbstractArray{TX}, y::AbstractArray{T}; extrapolation::PPExtrapolation = LinearAutoExtrapolation()) where {T, TX}
+	pp = PP(2, T, TX, length(y), extrapolation = extrapolation)
 	computeLinearPP(pp, x, y)
 	return pp
 end
@@ -95,6 +82,7 @@ function computeLinearPP(pp::PP{N, T, TX}, x::AbstractArray{TX}, y::AbstractArra
 		for i ∈ 1:n-1
 			b[i] = (y[i+1] - y[i]) / (x[i+1] - x[i])
 		end
+		b[n] = b[n-1]
 		pp.a[1:end] = y
 		pp.b[1:end] = b
 		pp.c[1:end, 1:end] = zeros(T, n - 1, (N - 1))
@@ -102,9 +90,30 @@ function computeLinearPP(pp::PP{N, T, TX}, x::AbstractArray{TX}, y::AbstractArra
 	end
 end
 
-CubicSplineNatural(x::AbstractArray{TX}, y::AbstractArray{T}) where {TX, T} = makeCubicPP(x, y, SECOND_DERIVATIVE, zero(T), SECOND_DERIVATIVE, zero(T), C2())
+CubicSplineNatural(x::AbstractArray{TX}, y::AbstractArray{T}; extrapolation::PPExtrapolation = LinearAutoExtrapolation()) where {TX, T} =
+	makeCubicPP(x, y, SECOND_DERIVATIVE, zero(T), SECOND_DERIVATIVE, zero(T), C2(), extrapolation = extrapolation)
 
-CubicSplineNotAKnot(x::AbstractArray{TX}, y::AbstractArray{T}) where {TX, T} = makeCubicPP(x, y, NOT_A_KNOT, zero(T), NOT_A_KNOT, zero(T), C2())
+CubicSplineNotAKnot(x::AbstractArray{TX}, y::AbstractArray{T}; extrapolation::PPExtrapolation = LinearAutoExtrapolation()) where {TX, T} =
+	makeCubicPP(x, y, NOT_A_KNOT, zero(T), NOT_A_KNOT, zero(T), C2(), extrapolation = extrapolation)
+
+"""
+	makeCubicPP(x, y, kind = C2(); left = Natural(), right = Natural(), extrapolation = LinearAutoExtrapolation())
+
+Cubic spline interpolating `y` at the knots `x`. The first derivatives at the knots are computed according to `kind`.
+The boundary conditions `left` and `right` are one of `Natural()`, `NotAKnot()`, `FirstDifference()`, `FirstDerivative(value)`, `SecondDerivative(value)`.
+"""
+function makeCubicPP(
+	x::AbstractArray{TX},
+	y::AbstractArray{T},
+	kind::DerivativeKind = C2();
+	left::BoundaryCondition = Natural(),
+	right::BoundaryCondition = Natural(),
+	extrapolation::PPExtrapolation = LinearAutoExtrapolation(),
+) where {T, TX}
+	leftBoundary, leftValue = boundaryPair(left, T)
+	rightBoundary, rightValue = boundaryPair(right, T)
+	return makeCubicPP(x, y, leftBoundary, leftValue, rightBoundary, rightValue, kind, extrapolation = extrapolation)
+end
 
 function makeCubicPP(
 	x::AbstractArray{TX},
@@ -113,9 +122,10 @@ function makeCubicPP(
 	leftValue::T,
 	rightBoundary::PPBoundary,
 	rightValue::T,
-	kind::DerivativeKind,
+	kind::DerivativeKind;
+	extrapolation::PPExtrapolation = LinearAutoExtrapolation(),
 ) where {T, TX}
-	pp = PP(3, T, TX, length(y))
+	pp = PP(3, T, TX, length(y), extrapolation = extrapolation)
 	computePP(pp, x, y, leftBoundary, leftValue, rightBoundary, rightValue, kind)
 	return pp
 end
@@ -246,247 +256,6 @@ function computePP(
 	pp.x[1:end] = x
 end
 
-"evaluate a sorted array `za` with piecewise cubic interpolation, putting the results in `v``. `za`` must be sorted in ascending order. For now it does not support extrapolation."
-function evaluateSorted!(self::Union{PP{3, T, TX}, PP{2, T, TX}}, v::AbstractVector{T}, za::AbstractVector{TZ}) where {T, TX, TZ}
-	ppIndex = 1
-	for j ∈ 1:length(za)
-		z = za[j]
-		while (ppIndex < length(self.x) && (self.x[ppIndex] < z)) #Si[ppIndex]<=z<Si[ppIndex+1]  
-			ppIndex += 1
-		end
-		ppIndex -= 1
-		ppIndex = min(max(ppIndex, 1), length(self.x) - 1)
-		v[j] = evaluatePiece(self, ppIndex, z)
-	end
-end
-
-function evaluate(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ; extrapolation = LinearAutoExtrapolation()) where {T, TX, TZ}
-	if z < self.x[1]
-		return evaluateLeftExtrapolation(self, z, extrapolation)
-	elseif z >= self.x[end]
-		return evaluateRightExtrapolation(self, z, extrapolation)
-	end
-	i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-	if z != self.x[i] && i > 1
-		i -= 1
-	end
-	return evaluatePiece(self, i, z)
-end
-
-
-function evaluateLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	return self.b[1] * (z - self.x[1]) + self.a[1]
-end
-
-function evaluateRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	slope = evaluateDerivativePiece(self, length(self.x) - 1, self.x[end])
-	return slope * (z - self.x[end]) + self.a[end]
-end
-
-function evaluateLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
-	return self.a[1]
-end
-
-function evaluateRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
-	return self.a[end]
-end
-
-function evaluateLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluatePiece(self, 1, z)
-end
-
-function evaluateRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluatePiece(self, length(self.x) - 1, z)
-end
-
-@inline function evaluatePiece(self::PP{3, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
-end
-
-@inline function evaluatePiece(self::PP{2, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return self.a[i] + h * (self.b[i] + h * (self.c[i, 1]))
-end
-
-@inline function evaluatePiece(self::PP{1, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return self.a[i] + h * self.b[i]
-end
-
-
-function evaluateDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	return self.b[1]
-end
-
-function evaluateDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	return self.b[end]
-end
-
-function evaluateDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluateDerivativePiece(self, 1, z)
-end
-
-function evaluateDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluateDerivativePiece(self, length(self.x) - 1, z)
-end
-
-function evaluateDerivative(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ; extrapolation = LinearAutoExtrapolation()) where {T, TX, TZ}
-	if z < self.x[1]
-		return evaluateDerivativeLeftExtrapolation(self, z, extrapolation)
-	elseif z >= self.x[end]
-		return evaluateDerivativeRightExtrapolation(self, z, extrapolation)
-	end
-	i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-	if z != self.x[i] && i > 1
-		i -= 1
-	end
-	return evaluateDerivativePiece(self, i, z)
-end
-
-@inline function evaluateDerivativePiece(self::PP{3, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return self.b[i] + h * (2 * self.c[i, 1] + h * (3 * self.c[i, 2]))
-end
-
-@inline function evaluateDerivativePiece(self::PP{2, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return self.b[i] + 2h * self.c[i, 1]
-end
-
-@inline function evaluateDerivativePiece(self::PP{1, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	return self.b[i]
-end
-
-function evaluateIntegral(self::PP{N, T, TX}, z1::TZ, z2::TZ) where {N, T, TX, TZ}
-	# get final type of calculation
-	U = promote_type(T, promote_type(TX, TZ))
-	# check if z1 < z2
-	if z1 < z2
-		sign = one(U)
-	elseif z2 < z1
-		sign = -one(U)
-		z1, z2 = z2, z1
-	else
-		return zero(U)
-	end
-
-	# for now throw error if z1 or z2 are out of bounds
-	if z1 < self.x[1] || z2 > self.x[end]
-		throw(
-			AssertionError(
-				"The integration bounds must be inside of the interpolation interval.",
-			),
-		)
-	end
-
-	# find edge polynomials
-	i1 = searchsortedfirst(self.x, z1)
-	i2 = searchsortedfirst(self.x, z2)
-	if z1 != self.x[i1]
-		# the edge case i1 = 1 can not happen, as this would mean z1 < x[1] and in this case an error would already been thrown
-		i1 -= 1
-	end
-
-	# calculate integral
-	integral::U = zero(U)
-	# iterate over the involved polynomials
-	for i in i1:i2-1
-		# calculate integration bounds of current integral
-		# this makes sure that the lower integration bound of the first polynomial, i.e. the case i = i1, is z1        
-		lower_bound = max(z1, self.x[i])
-		# smiliar this makes sure taht the upper bound of the last polynoimial, i.e. the case i = i2 - 1, is z2
-		upper_bound = min(z2, self.x[i+1])
-		h1 = upper_bound - self.x[i]
-		h2 = lower_bound - self.x[i]
-		# f(x) = a + b (x-xi) + c1 (x-xi)^2 + c2 (x-xi)^3 + ...
-		# indefinite integral with integraion constant -a xi + ...
-		# F(x) = a (x-xi) + b/2 (x-xi)^2 + c1/3 (x-xi)^3 + c2/4 (x-xi)^4
-		integral += self.a[i] * (h1 - h2) + self.b[i] / 2 * (h1^2 - h2^2) + sum(self.c[i, j] / (j + 2) * (h1^(j + 2) - h2^(j + 2)) for j in 1:N-1)
-	end
-	# return the integral multiplied by the correct sign, if the integration bounds were swapped
-	return integral * sign
-end
-
-
-function evaluateSecondDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateSecondDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::LinearAutoExtrapolation) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateSecondDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateSecondDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::ConstantAutoExtrapolation) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateSecondDerivativeLeftExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluateSecondDerivativePiece(self, 1, z)
-end
-
-function evaluateSecondDerivativeRightExtrapolation(self::Union{PP{3, T, TX}, PP{2, T, TX}, PP{1, T, TX}}, z::TZ, extrapolation::PieceAutoExtrapolation) where {T, TX, TZ}
-	return evaluateSecondDerivativePiece(self, length(self.x) - 1, z)
-end
-function evaluateSecondDerivative(self::PP{N, T, TX}, z::TZ; extrapolation = LinearAutoExtrapolation()) where {N, T, TX, TZ}
-	if z < self.x[1]
-		return evaluateSecondDerivativeLeftExtrapolation(self, z, extrapolation)
-	elseif z >= self.x[end]
-		return evaluateSecondDerivativeRightExtrapolation(self, z, extrapolation)
-	end
-	i = searchsortedfirst(self.x, z) # x[i-1]<z<=x[i]
-	if z != self.x[i] && i > 1
-		i -= 1
-	end
-	return evaluateSecondDerivativePiece(self, i, z)
-end
-
-@inline function evaluateSecondDerivativePiece(self::PP{3, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return 2 * self.c[i, 1] + h * (3 * 2 * self.c[i, 2])
-end
-
-@inline function evaluateSecondDerivativePiece(self::PP{2, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	return 2 * self.c[i, 1]
-end
-
-@inline function evaluateSecondDerivativePiece(self::PP{1, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	return zero(T)
-end
-
-function evaluateThirdDerivative(self::PP{N, T, TX}, z::TZ) where {N, T, TX, TZ}
-	if z < self.x[1]
-		return zero(T)
-	elseif z >= self.x[end]
-		return zero(T)
-	end
-	i = searchsortedfirst(self.x, z)  # x[i-1]<z<=x[i]
-	if z != self.x[i] && i > 1
-		i -= 1
-	end
-	return evaluateThirdDerivativePiece(self, i, z)
-end
-
-@inline function evaluateThirdDerivativePiece(self::PP{3, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	return 3 * 2 * self.c[i, 2]
-end
-
-(spl::PP{N, T, TX})(x::TZ) where {N, T, TX, TZ} = evaluate(spl, x)
-function (spl::PP{N, T, TX})(x::AbstractArray) where {N, T, TX}
-	evaluate.(spl, x)
-end
 
 
 function filterSlope(kind::C2, y::AbstractArray{T}, b::AbstractArray{T}, dx::AbstractArray{TX}, S::AbstractArray{T}) where {T, TX}
@@ -604,16 +373,6 @@ function filterSlope(kind::C2Hyman89, y::AbstractArray{T}, b::AbstractArray{T}, 
 end
 
 
-function estimateDerivativeParabolic(x::AbstractArray{TX}, y::AbstractArray{T}) where {T, TX}
-	n = length(x)
-	b = zeros(T, n)
-	dx = x[2:end] - x[1:end-1]
-	S = (y[2:end] - y[1:end-1]) ./ dx
-	for i ∈ 2:n-1
-		b[i] = (dx[i-1] * S[i] + dx[i] * S[i-1]) / (dx[i-1] + dx[i])
-	end
-	return b
-end
 
 
 function limit(::HuynRational, s::T, t::T) where {T}
@@ -701,10 +460,6 @@ function fillDerivativeEstimate(limiter::Brodlie, dx::AbstractArray{TX}, S::Abst
 end
 
 
-@inline function evaluate(self::PPInterpolation.PP{3, T, TX}, i::Int, z::TZ) where {T, TX, TZ}
-	h = z - self.x[i]
-	return self.a[i] + h * (self.b[i] + h * (self.c[i, 1] + h * (self.c[i, 2])))
-end
 
 normpdf(x) = exp(-x^2 / 2) / sqrt(2π)
 normcdf(x) = erfc(-x / sqrt(2)) / 2

@@ -60,15 +60,18 @@ using PPInterpolation
 
 x = [3.0, 5.0, 6.0, 8.0, 9.0, 11.0, 12.0, 14.0, 15.0]
 f = [10.0, 10.0, 10.0, 10.0, 10.5, 15.0, 50.0, 60.0, 85.0]
-spline = makeCubicPP(x, f, PPInterpolation.SECOND_DERIVATIVE, 0.0, PPInterpolation.SECOND_DERIVATIVE, 0.0, C2())
+spline = makeCubicPP(x, f, C2(), left = Natural(), right = Natural())
 spline(4.0)
 ```
+
+The boundary conditions `left` and `right` default to `Natural()` and may be any of `Natural()`, `NotAKnot()`, `FirstDifference()`, `FirstDerivative(value)` or `SecondDerivative(value)`.
+The older positional form `makeCubicPP(x, f, PPInterpolation.SECOND_DERIVATIVE, 0.0, PPInterpolation.SECOND_DERIVATIVE, 0.0, C2())` is still supported.
 
 The C2 spline overshoots around the sharp increase, while the filtered `C2Hyman89()` variant stays monotone:
 
 ![C2 cubic spline and C2Hyman89](docs/img/cubic_c2.png)
 
-The boundary conditions are given by the third and fifth parameters, with the corresponding values as fourth and sixth parameters. They mostly change the spline on the first and last intervals:
+The boundary conditions mostly change the spline on the first and last intervals:
 
 ![Boundary conditions of the C2 cubic spline](docs/img/boundary.png)
 
@@ -97,16 +100,18 @@ The limiters produce C1 Hermite splines. Unlike the parabolic `Bessel()` estimat
 
 ![C1 Hermite splines with limiters](docs/img/cubic_c1.png)
 
-The spline may be evaluated beyond the original range for `x`. It then makes use of an optional extrapolation parameter, which defaults to linear interpolation. For a constant extrapolation, use:
+The spline may be evaluated beyond the original range for `x`. The extrapolation is given when building the spline, and defaults to a linear extrapolation using the value and slope at the end-points:
+```julia
+spline = makeCubicPP(x, f, C2(), extrapolation = ConstantAutoExtrapolation())
+spline(20.0) # 85.0
 ```
-evaluate(spline, 4.0, extrapolation=ConstantAutoExtrapolation())
-```
-To evaluate using the first/last polynomial piece, use `evaluate(spline, 4.0, extrapolation=PieceAutoExtrapolation())`
+`PieceAutoExtrapolation()` uses the first/last polynomial piece and `ZeroExtrapolation()` is zero beyond the end-points. All spline constructors accept the `extrapolation` keyword.
+The extrapolation of an existing spline is changed with `PP(spline, extrapolation = PieceAutoExtrapolation())`, or for a single evaluation with `evaluate(spline, 20.0, extrapolation = PieceAutoExtrapolation())`.
 
 ![Extrapolation of a cubic spline](docs/img/extrapolation.png)
 
 ### Derivatives and integrals
-The first and second derivatives of a spline are evaluated with `evaluateDerivative(spline, z)` and `evaluateSecondDerivative(spline, z)`. The integral of the spline between `z1` and `z2` (within the knots) is `evaluateIntegral(spline, z1, z2)`.
+The first, second and third derivatives of a spline are evaluated with `evaluateDerivative(spline, z)`, `evaluateSecondDerivative(spline, z)` and `evaluateThirdDerivative(spline, z)`, consistently with the extrapolation. The integral of the spline between `z1` and `z2` (within the knots) is `evaluateIntegral(spline, z1, z2)`.
 
 ### Quadratic Lagrange interpolation
 Quadratic Lagrange interpolation has fast evaluation API with mutable variable:
@@ -122,6 +127,8 @@ y = Array{Float64}(undef, 100) #the output
 z = collect(range(3.0,stop=15.0,length=100)) #this is sorted input
 evaluateSorted!(spline,y,z)
 ```
+
+`convert(PP, spline)` gives the equivalent piecewise quadratic polynomial, to use the integration and extrapolation features.
 
 ### Schumaker quadratic spline interpolation
 `SchumakerQuadraticPP` implements the shape preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation". It matches the values given by the Julia package [SchumakerSpline.jl](https://github.com/s-baumann/SchumakerSpline.jl) but allows to override the calculations of first derivatives, for example using the choice of Maria H. Lam (1990) "Monotone and Convex Spline Interpolation" guaranteeing a local interpolation.

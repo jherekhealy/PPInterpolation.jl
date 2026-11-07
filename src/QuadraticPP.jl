@@ -9,7 +9,7 @@ LamDerivative{T}() where {T} = LamDerivative(one(T) / 2)
 
 
 """
-	SchumakerQuadraticPP(t::AbstractArray{TX}, z::AbstractArray{T},	variant::FirstDerivativeVariant=SchumakerDerivative(); epsilon = sqrt(eps(T))
+	SchumakerQuadraticPP(t::AbstractArray{TX}, z::AbstractArray{T},	variant::FirstDerivativeVariant=SchumakerDerivative(); epsilon = sqrt(eps(T)), extrapolation = LinearAutoExtrapolation())
 
 This routine implements monotonicity and convexity preserving quadratic spline of Larry L. Schumaker (1983) "On Shape Preserving Quadratic Spline Interpolation".
 
@@ -33,6 +33,7 @@ function SchumakerQuadraticPP(
 	z::AbstractArray{T},
 	variant::FirstDerivativeVariant = SchumakerDerivative();
 	epsilon = sqrt(eps(T)),
+	extrapolation::PPExtrapolation = LinearAutoExtrapolation(),
 ) where {T, TX}
 	dt = t[2:end] - t[1:end-1]
 	dz = z[2:end] - z[1:end-1]
@@ -88,7 +89,8 @@ function SchumakerQuadraticPP(
 	end
 	x = push!(x, t[end])
 	a = push!(a, z[end])
-	pp = PP(2, a, b, reshape(c, length(c), 1), x)
+	b = push!(b, s[end])
+	pp = PP(2, a, b, reshape(c, length(c), 1), x, extrapolation = extrapolation)
 	return pp
 end
 

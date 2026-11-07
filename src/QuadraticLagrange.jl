@@ -17,7 +17,41 @@ struct QuadraticLagrangePP{TX, T}
     QuadraticLagrangePP(x::AbstractArray{TX},y::AbstractArray{T};knotStyle=MID_KNOT) where {TX,T}= new{TX,T}(x,y,knotStyle)
 end
 
-#TODO add method to convert to PP{2,T,TX}
+"""
+    convert(PP{2,T,TX}, q::QuadraticLagrangePP)
+
+Exact piecewise quadratic representation of the quadratic Lagrange interpolation `q`. Its breakpoints are the boundaries of the Lagrange pieces,
+which depend on the `knotStyle`. The interpolation is not continuous at those breakpoints.
+"""
+function Base.convert(::Type{PP{2, T, TX}}, q::QuadraticLagrangePP) where {T, TX}
+    x, y = q.x, q.y
+    n = length(x)
+    n >= 3 || throw(ArgumentError("quadratic Lagrange interpolation requires at least 3 knots"))
+    # breakpoints and Lagrange index of each piece, consistent with findIndex
+    if q.knotStyle == LEFT_KNOT
+        breaks = TX[x[1]; x[3:end]]
+        lagrangeIndex = j -> j == 1 ? 2 : j + 1
+    else
+        breaks = TX[x[1]; [(x[i] + x[i+1]) / 2 for i in 2:n-2]; x[end]]
+        lagrangeIndex = j -> j + 1
+    end
+    m = length(breaks)
+    a = zeros(T, m)
+    b = zeros(T, m)
+    c = zeros(T, (m - 1, 1))
+    for j in 1:m-1
+        k = lagrangeIndex(j)
+        a[j] = evaluate(k, x, y, breaks[j])
+        b[j] = evaluateDerivative(k, x, y, breaks[j])
+        c[j, 1] = evaluateSecondDerivative(k, x, y, breaks[j]) / 2
+    end
+    k = lagrangeIndex(m - 1)
+    a[m] = evaluate(k, x, y, breaks[m])
+    b[m] = evaluateDerivative(k, x, y, breaks[m])
+    return PP(2, a, b, c, breaks)
+end
+
+Base.convert(::Type{PP}, q::QuadraticLagrangePP{TX, T}) where {TX, T} = convert(PP{2, T, TX}, q)
 
 Base.length(p::QuadraticLagrangePP) = Base.length(p.x)
 Base.size(p::QuadraticLagrangePP) = Base.size(p.x)

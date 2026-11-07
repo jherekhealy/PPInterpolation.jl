@@ -277,7 +277,7 @@ end
 		0.0011571643542627069 0.18259999999999987 3.6612371398105434
 	]
 	@test isapprox(refCoeffMatrixSchumaker[:, 1], interp.c[:, 1], atol = 1e-15)
-	@test isapprox(refCoeffMatrixSchumaker[:, 2], interp.b, atol = 1e-15)
+	@test isapprox(refCoeffMatrixSchumaker[:, 2], interp.b[1:end-1], atol = 1e-15)
 	@test isapprox(refCoeffMatrixSchumaker[:, 3], interp.a[1:end-1], atol = 1e-15)
 	z1 = Array{Float64}(undef, length(u)) #the output
 	evaluateSorted!(interp, z1, u)
@@ -285,3 +285,4 @@ end
 end
 
 include("conversion_tests.jl")
+include("design_tests.jl")
