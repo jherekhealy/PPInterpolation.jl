@@ -1,4 +1,8 @@
+module PPInterpolationBSplinesExt
+
 using BSplines
+using PPInterpolation
+using PPInterpolation: PP
 
 
 function Base.convert(::Type{PP{2,T,TX}}, spl::BSplines.Spline) where {T,TX}
@@ -168,3 +172,5 @@ function bspp(t::AbstractArray{T}, bcoef::AbstractArray{B}, n::Int, k::Int) wher
     end
     return @view(breakA[1:l+1]), @view(coef[:, 1:l+1]), l
 end
+
+end # module

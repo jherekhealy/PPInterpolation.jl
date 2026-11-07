@@ -84,8 +84,6 @@ end
 	for i ∈ 1:nSample
 		ti = (t[end]) * (i) / (nSample)
 		val = evaluateDerivative(spline, ti)
-		zval = spline(ti) / ti
-		println(ti, " CubicPP ", val, " ", zval)
 		autoval = ForwardDiff.derivative(spline, ti)
 		@test isapprox(val, autoval, atol = 1e-15)
 	end
@@ -122,11 +120,11 @@ end
 	spline = makeCubicPP(x, y, PPInterpolation.FIRST_DERIVATIVE, 0.0, PPInterpolation.FIRST_DERIVATIVE, 0.0, Fukasawa())
 	z = collect(range(x[1], stop = x[end], length = 500))
 	yNew = Array{Float64}(undef, length(z))
-	@time yNew[1:end] = spline(z)
+	yNew[1:end] = spline(z)
 	@test isapprox(y[5], spline(x[5]), atol = 1e-15)
 	splineb = makeCubicPP(x, y, PPInterpolation.FIRST_DERIVATIVE, 0.0, PPInterpolation.FIRST_DERIVATIVE, 0.0, ReflectingAngle())
 	ybNew = Array{Float64}(undef, length(z))
-	@time ybNew[1:end] = splineb(z)
+	ybNew[1:end] = splineb(z)
 	for i ∈ 1:length(yNew)
 		@test isapprox(yNew[i], ybNew[i], atol = 1e-8)
 	end
@@ -139,18 +137,18 @@ using QuadGK
 	spline = makeCubicPP(x, y, PPInterpolation.SECOND_DERIVATIVE, 0.0, PPInterpolation.SECOND_DERIVATIVE, 0.0, C2())
 	z = collect(range(x[1], stop = x[end], length = 500))
 	yNew = Array{Float64}(undef, length(x))
-	@time yNew[1:end] = spline(z)
+	yNew[1:end] = spline(z)
 	@test isapprox(y[10], spline(x[10]), atol = 1e-15)
 	yNewCopy = Array{Float64}(undef, length(x))
-	@time for i ∈ 1:length(z)
+	for i ∈ 1:length(z)
 		yNew[i] = spline(z[i])
 	end
-	@time evaluateSorted!(spline, yNewCopy, z)
+	evaluateSorted!(spline, yNewCopy, z)
 	for i ∈ 1:length(yNew)
 		@test isapprox(yNew[i], yNewCopy[i], atol = 0.0)
 	end
 	q = QuadraticLagrangePP(x, y)
-	@time evaluateSorted!(q, yNew, z)
+	evaluateSorted!(q, yNew, z)
 	@test isapprox(y[10], q(x[10]), atol = 1e-15)
 	@test evaluateSorted(q, z) ≈ q.(z)
 	val = evaluateDerivative(q, 0.5)
@@ -175,7 +173,7 @@ end
 	spline = makeHermiteQuinticPP(x, y, yp)
 	z = collect(range(x[1], stop = x[end], length = 500))
 	yNew = Array{Float64}(undef, length(x))
-	@time yNew[1:end] = spline(z)
+	yNew[1:end] = spline(z)
 	@test isapprox(y[10], spline(x[10]), atol = 1e-15)
 	@test isapprox(yp[10], evaluateDerivative(spline, x[10]), atol = 1e-15)
 	zi = (x[10] + x[11]) / 2
@@ -194,7 +192,6 @@ end
 	for i ∈ 0:50
 		ui = 1.0 + 4i / 50.0
 		zi = interp(ui)
-		println(ui, " ", zi, " ", evaluateDerivative(interp, ui))
 		@test isapprox(ref[i+1], zi, atol = 1e-15)
 	end
 end
@@ -210,10 +207,8 @@ end
 		zi = interp(ui)
 		z[i] = zi
 		z2i = evaluateSecondDerivative(interp, ui)
-		println(ui, " ", zi, " ", evaluateDerivative(interp, ui), " ", z2i)
 		@test z2i >= 0
 		z2i2 = evaluateSecondDerivative(interp2, ui)
-		println(ui, " ", interp2(ui), " ", evaluateDerivative(interp2, ui), " ", z2i2)
 		@test z2i2 >= 0
 	end
 	#continuity test

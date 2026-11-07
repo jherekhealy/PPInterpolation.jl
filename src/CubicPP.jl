@@ -1,7 +1,7 @@
 using LinearAlgebra
 import SpecialFunctions: erfc
-export PP, makeLinearCubicPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie, Hermite, Fukasawa
-export evaluateDerivative, evaluateSecondDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluateIntegral
+export PP, makeLinearPP, makeCubicPP, C2, C2Hyman89, C2HymanNonNegative, C2MP, C2MP2, Bessel, HuynRational, VanAlbada, VanLeer, FritschButland, Brodlie, Hermite, Fukasawa
+export evaluateDerivative, evaluateSecondDerivative, evaluateThirdDerivative, CubicSplineNatural, CubicSplineNotAKnot, evaluateSorted!, evaluateIntegral
 export evaluatePiece, evaluateDerivativePiece
 export LinearAutoExtrapolation, ConstantAutoExtrapolation, PieceAutoExtrapolation
 abstract type DerivativeKind end
